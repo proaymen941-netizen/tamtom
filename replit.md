@@ -16,6 +16,12 @@ Currency: SAR (ريال سعودي / ر.س) — All prices in ar-SA locale.
 - صلاحيات iOS كاملة: كاميرا، موقع، جهات اتصال
 - رابط السيرفر في `flutter_app/lib/utils/constants.dart` - يجب تحديثه عند تغيير الاستضافة
 
+## Replit Setup Notes
+- **Workflow**: `npm run dev` on port 5000 (webview)
+- **Database**: PostgreSQL via Replit built-in (DATABASE_URL env var)
+- **CSS Fix**: Root `tailwind.config.js` content paths fixed to point at `./client/src/**`. A `client/postcss.config.js` was added so Vite middleware mode picks up PostCSS/Tailwind correctly.
+- **HMR Warning**: WebSocket HMR connection shows a warning in the browser console due to Replit's proxy — this is normal and does not affect app functionality.
+
 ## Architecture
 
 ### Frontend
