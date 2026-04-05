@@ -262,6 +262,65 @@ export function UiControlPanel() {
         </CardContent>
       </Card>
 
+      {/* إعدادات تطبيق Flutter */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Smartphone className="h-5 w-5" />
+            إعدادات تطبيق Flutter (السبلاش)
+          </CardTitle>
+          <CardDescription>
+            التحكم في شعار وايقونة السبلاش والعناوين في تطبيق الهاتف
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>رابط صورة خلفية السبلاش (Flutter)</Label>
+            <div className="flex gap-2">
+              <Input 
+                value={localSettings['flutter_splash_image_url'] || ''} 
+                onChange={(e) => handleInputChange('flutter_splash_image_url', e.target.value)}
+                placeholder="رابط الصورة (JPG/PNG)"
+              />
+              <Button onClick={() => handleSaveSetting('flutter_splash_image_url')}>حفظ</Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>رابط ايقونة السبلاش/اللوجو (Flutter)</Label>
+            <div className="flex gap-2">
+              <Input 
+                value={localSettings['flutter_logo_url'] || ''} 
+                onChange={(e) => handleInputChange('flutter_logo_url', e.target.value)}
+                placeholder="رابط الايقونة (PNG)"
+              />
+              <Button onClick={() => handleSaveSetting('flutter_logo_url')}>حفظ</Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>عنوان شاشة السبلاش (Flutter)</Label>
+            <div className="flex gap-2">
+              <Input 
+                value={localSettings['flutter_splash_title'] || ''} 
+                onChange={(e) => handleInputChange('flutter_splash_title', e.target.value)}
+                placeholder="مثال: طمطوم"
+              />
+              <Button onClick={() => handleSaveSetting('flutter_splash_title')}>حفظ</Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>وصف شاشة السبلاش (Flutter)</Label>
+            <div className="flex gap-2">
+              <Input 
+                value={localSettings['flutter_splash_subtitle'] || ''} 
+                onChange={(e) => handleInputChange('flutter_splash_subtitle', e.target.value)}
+                placeholder="مثال: خضروات وفواكه طازجة..."
+              />
+              <Button onClick={() => handleSaveSetting('flutter_splash_subtitle')}>حفظ</Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* إعدادات المحتوى والمشاركة */}
       <Card>
         <CardHeader>
