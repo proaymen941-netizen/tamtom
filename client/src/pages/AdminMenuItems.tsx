@@ -21,7 +21,6 @@ export default function AdminMenuItems() {
   const queryClient = useQueryClient();
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedRestaurant, setSelectedRestaurant] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   
   const [formData, setFormData] = useState({
@@ -33,7 +32,7 @@ export default function AdminMenuItems() {
     category: '',
     isAvailable: true,
     isSpecialOffer: false,
-    restaurantId: '',
+    restaurantId: 'auto',
     brand: '',
     sizes: '',
     colors: '',
@@ -55,20 +54,14 @@ export default function AdminMenuItems() {
 
   // جلب المنتجات الخاصة بالمتجر المحدد أو جميع المنتجات
   const { data: menuItems, isLoading } = useQuery<MenuItem[]>({
-    queryKey: ['/api/admin/menu-items', selectedRestaurant],
+    queryKey: ['/api/admin/menu-items'],
     queryFn: async () => {
-      // إذا لم يتم اختيار مطعم محدد، جلب جميع المنتجات
-      const url = selectedRestaurant && selectedRestaurant !== 'all' 
-        ? `/api/admin/restaurants/${selectedRestaurant}/menu` 
-        : `/api/admin/menu-items`;
-        
-      const response = await apiRequest('GET', url);
+      const response = await apiRequest('GET', '/api/admin/menu-items');
       if (!response.ok) {
         throw new Error('فشل في جلب المنتجات');
       }
       return response.json();
     },
-    // تم إزالة enabled: !!selectedRestaurant للسماح بجلب الكل
   });
 
   const createMenuItemMutation = useMutation({
@@ -119,7 +112,7 @@ export default function AdminMenuItems() {
         rating: parseFloat(data.rating) || 5,
         isFeatured: data.isFeatured,
         isNew: data.isNew,
-        restaurantId: data.restaurantId || selectedRestaurant,
+        restaurantId: tamtomStore?.id || data.restaurantId,
       };
       
       const response = await apiRequest('POST', '/api/admin/menu-items', submitData);
@@ -191,7 +184,7 @@ export default function AdminMenuItems() {
         rating: parseFloat(data.rating) || 5,
         isFeatured: data.isFeatured,
         isNew: data.isNew,
-        restaurantId: data.restaurantId || selectedRestaurant,
+        restaurantId: tamtomStore?.id || data.restaurantId,
       };
       
       const response = await apiRequest('PUT', `/api/admin/menu-items/${id}`, submitData);
@@ -240,7 +233,7 @@ export default function AdminMenuItems() {
       category: '',
       isAvailable: true,
       isSpecialOffer: false,
-      restaurantId: selectedRestaurant,
+      restaurantId: tamtomStore?.id || '',
       brand: '',
       sizes: '',
       colors: '',
@@ -263,7 +256,7 @@ export default function AdminMenuItems() {
       category: item.category,
       isAvailable: item.isAvailable,
       isSpecialOffer: item.isSpecialOffer,
-      restaurantId: item.restaurantId || selectedRestaurant,
+      restaurantId: item.restaurantId || tamtomStore?.id || '',
       brand: item.brand || '',
       sizes: item.sizes || '',
       colors: item.colors || '',
@@ -278,7 +271,7 @@ export default function AdminMenuItems() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim() || !formData.price || !selectedRestaurant) {
+    if (!formData.name.trim() || !formData.price) {
       toast({
         title: "خطأ",
         description: "يرجى إدخال جميع البيانات المطلوبة",
@@ -313,7 +306,7 @@ export default function AdminMenuItems() {
 
     const dataWithRestaurant = { 
       ...formData, 
-      restaurantId: selectedRestaurant === 'all' ? tamtomStore?.id : selectedRestaurant,
+      restaurantId: tamtomStore?.id || '',
       originalPrice: formData.originalPrice.trim() || ''
     };
 
@@ -338,7 +331,7 @@ export default function AdminMenuItems() {
         isSpecialOffer: field === 'isSpecialOffer' ? !item[field] : item.isSpecialOffer,
         isFeatured: field === 'isFeatured' ? !item[field] : (item.isFeatured || false),
         isNew: field === 'isNew' ? !item[field] : (item.isNew ?? true),
-        restaurantId: item.restaurantId || selectedRestaurant,
+        restaurantId: item.restaurantId || tamtomStore?.id || '',
         brand: item.brand || '',
         sizes: item.sizes || '',
         colors: item.colors || '',
@@ -370,49 +363,30 @@ export default function AdminMenuItems() {
     item.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Package className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">إدارة المنتجات - طمطوم</h1>
-            <p className="text-muted-foreground">إدارة منتجات متجر طمطوم</p>
+    <div className="flex flex-col min-h-full">
+      {/* Sticky Toolbar */}
+      <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-3">
+            <Package className="h-7 w-7 text-primary" />
+            <div>
+              <h1 className="text-xl font-bold text-foreground">إدارة المنتجات - طمطوم</h1>
+              <p className="text-sm text-muted-foreground">إدارة منتجات متجر طمطوم</p>
+            </div>
           </div>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <Select 
-            value={selectedRestaurant} 
-            onValueChange={setSelectedRestaurant}
+          <Button
+            className="gap-2"
+            onClick={() => { resetForm(); setIsDialogOpen(true); }}
+            data-testid="button-add-menu-item"
           >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="اختر المتجر" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">جميع المتاجر</SelectItem>
-              {restaurants.map((restaurant) => (
-                <SelectItem key={restaurant.id} value={restaurant.id}>
-                  {restaurant.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Plus className="h-4 w-4" />
+            إضافة منتج
+          </Button>
+        </div>
+      </div>
 
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button 
-                className="gap-2"
-                onClick={() => {
-                  resetForm();
-                  setIsDialogOpen(true);
-                }}
-                data-testid="button-add-menu-item"
-              >
-                <Plus className="h-4 w-4" />
-                إضافة منتج
-              </Button>
-            </DialogTrigger>
+      {/* Dialog - portal renders outside DOM flow */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
@@ -588,11 +562,9 @@ export default function AdminMenuItems() {
               </form>
             </DialogContent>
           </Dialog>
-        </div>
-      </div>
 
       {/* شريط البحث */}
-      {selectedRestaurant && (
+      {true && (
         <Card>
           <CardContent className="p-4">
             <div className="relative">
@@ -610,7 +582,7 @@ export default function AdminMenuItems() {
       )}
 
       {/* Restaurant Selection Message - تم التعديل لعرض المنتجات دائماً */}
-      {false && !selectedRestaurant && (
+      {false && (
         <Card>
           <CardContent className="p-8 text-center">
             <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />

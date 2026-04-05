@@ -14,6 +14,7 @@ import StatsPage from './StatsPage';
 import ProfilePage from './ProfilePage';
 import WalletPage from './WalletPage';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { useUiSettings } from '@/context/UiSettingsContext';
 import {
   Truck,
   MapPin,
@@ -91,6 +92,9 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { getSetting: getSettingValue } = useUiSettings();
+
+  const getS = (key: string, defaultValue: string) => getSettingValue(key) || defaultValue;
 
   const driverToken = localStorage.getItem('driver_token');
 
@@ -342,9 +346,9 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'available': return 'متاح';
+      case 'available': return getS('driver_status_available', 'متاح');
       case 'busy': return 'مشغول';
-      case 'offline': return 'غير متاح';
+      case 'offline': return getS('driver_status_offline', 'غير متاح');
       default: return 'غير معروف';
     }
   };
@@ -373,24 +377,30 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
     averageRating: 0,
   };
 
-  // Nav Items
+  // Driver app UI settings visibility
+  const showWallet = getS('driver_show_wallet', 'true') !== 'false';
+  const showStats = getS('driver_show_stats', 'true') !== 'false';
+  const showProfile = getS('driver_show_profile', 'true') !== 'false';
+  const showHistory = getS('driver_show_history', 'true') !== 'false';
+
+  // Nav Items - filtered by UI settings
   const navItems = [
-    { id: 'dashboard', label: 'لوحة التحكم', icon: Activity },
-    { id: 'available', label: 'الطلبات المتاحة', icon: Bell },
-    { id: 'active', label: 'الطلبات النشطة', icon: Package },
-    { id: 'wallet', label: 'المحفظة', icon: DollarSign },
-    { id: 'map', label: 'الخريطة', icon: MapPinned },
-    { id: 'history', label: 'السجل', icon: History },
-    { id: 'stats', label: 'الإحصائيات', icon: TrendingUp },
-    { id: 'profile', label: 'الملف الشخصي', icon: User },
-  ];
+    { id: 'dashboard', label: 'لوحة التحكم', icon: Activity, visible: true },
+    { id: 'available', label: 'الطلبات المتاحة', icon: Bell, visible: true },
+    { id: 'active', label: 'الطلبات النشطة', icon: Package, visible: true },
+    { id: 'wallet', label: 'المحفظة', icon: DollarSign, visible: showWallet },
+    { id: 'map', label: 'الخريطة', icon: MapPinned, visible: true },
+    { id: 'history', label: 'السجل', icon: History, visible: showHistory },
+    { id: 'stats', label: 'الإحصائيات', icon: TrendingUp, visible: showStats },
+    { id: 'profile', label: 'الملف الشخصي', icon: User, visible: showProfile },
+  ].filter(item => item.visible);
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-white text-right" dir="rtl">
       <div className="p-6 border-b">
         <div className="flex items-center justify-end gap-3">
           <div className="text-right">
-            <h2 className="text-lg font-bold">تطبيق السائق</h2>
+            <h2 className="text-lg font-bold">{getS('driver_app_title', 'تطبيق السائق')}</h2>
             <p className="text-xs text-gray-500">ID: {driverId.slice(-6)}</p>
           </div>
           <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
@@ -681,22 +691,26 @@ export default function EnhancedDriverDashboard({ driverId, onLogout }: Enhanced
             <Package className="h-5 w-5" />
             <span className="text-[10px]">النشطة</span>
           </Button>
-          <Button 
-            variant="ghost" 
-            className={`flex flex-col items-center gap-1 h-auto py-1 ${activeTab === 'wallet' ? 'text-green-600' : 'text-gray-500'}`}
-            onClick={() => { setActiveTab('wallet'); setSelectedOrderId(null); }}
-          >
-            <DollarSign className="h-5 w-5" />
-            <span className="text-[10px]">المحفظة</span>
-          </Button>
-          <Button 
-            variant="ghost" 
-            className={`flex flex-col items-center gap-1 h-auto py-1 ${activeTab === 'profile' ? 'text-green-600' : 'text-gray-500'}`}
-            onClick={() => { setActiveTab('profile'); setSelectedOrderId(null); }}
-          >
-            <User className="h-5 w-5" />
-            <span className="text-[10px]">حسابي</span>
-          </Button>
+          {showWallet && (
+            <Button 
+              variant="ghost" 
+              className={`flex flex-col items-center gap-1 h-auto py-1 ${activeTab === 'wallet' ? 'text-green-600' : 'text-gray-500'}`}
+              onClick={() => { setActiveTab('wallet'); setSelectedOrderId(null); }}
+            >
+              <DollarSign className="h-5 w-5" />
+              <span className="text-[10px]">المحفظة</span>
+            </Button>
+          )}
+          {showProfile && (
+            <Button 
+              variant="ghost" 
+              className={`flex flex-col items-center gap-1 h-auto py-1 ${activeTab === 'profile' ? 'text-green-600' : 'text-gray-500'}`}
+              onClick={() => { setActiveTab('profile'); setSelectedOrderId(null); }}
+            >
+              <User className="h-5 w-5" />
+              <span className="text-[10px]">حسابي</span>
+            </Button>
+          )}
         </div>
       </main>
     </div>

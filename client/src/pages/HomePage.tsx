@@ -10,12 +10,17 @@ import {
 import TimingBanner from '@/components/TimingBanner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useUiSettings } from '@/context/UiSettingsContext';
 import type { Category, Restaurant } from '@shared/schema';
 
 export default function HomePage() {
   const [, setLocation] = useLocation();
   const [selectedCategory, setSelectedCategory] = useState('all'); // للفئات
   const [selectedTab, setSelectedTab] = useState('all'); // للتبويبات
+  const { getSetting, isFeatureEnabled } = useUiSettings();
+
+  const getS = (key: string, defaultValue: string) => getSetting(key, defaultValue);
+  const showSection = (key: string) => getSetting(key) !== 'false';
 
   // جلب البيانات
   const { data: restaurants } = useQuery<Restaurant[]>({
@@ -52,12 +57,12 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Timing Banner - Dynamic from settings */}
-      <TimingBanner />
+      {showSection('show_hero_section') && <TimingBanner />}
 
       {/* Main Content */}
       <main className="max-w-md mx-auto px-4 py-6">
         {/* Category Grid - Dynamic from API */}
-        <section id="categories-section" className="mb-6">
+        {showSection('show_categories') && <section id="categories-section" className="mb-6">
           <div className="grid grid-cols-4 gap-3">
             {categories?.slice(0, 3).map((category) => (
               <div key={category.id} className="text-center cursor-pointer" onClick={() => { setSelectedCategory(category.id); setSelectedTab('all'); }}>
@@ -77,13 +82,13 @@ export default function HomePage() {
               <div className="w-16 h-16 mx-auto mb-2 bg-white rounded-2xl shadow-sm flex items-center justify-center border border-gray-100">
                 <Menu className="h-8 w-8 text-blue-500" />
               </div>
-              <h4 className="text-xs font-medium text-gray-700">كل التصنيفات</h4>
+              <h4 className="text-xs font-medium text-gray-700">{getS('text_all_categories', 'كل التصنيفات')}</h4>
             </div>
           </div>
-        </section>
+        </section>}
 
         {/* Promotional Banners - Exactly like reference image */}
-        <section className="mb-6">
+        {showSection('show_hero_section') && <section className="mb-6">
           <div className="grid grid-cols-2 gap-3">
             {/* Special Offer Banner */}
             <div 
@@ -100,7 +105,7 @@ export default function HomePage() {
                 <div>
                   <p className="text-[10px] opacity-90 mb-2">عند طلب أي اكل من التطبيق</p>
                   <button className="bg-white text-orange-600 text-[10px] font-bold px-3 py-1 rounded-full w-full">
-                    تسوق الآن
+                    {getS('btn_shop_now', 'تسوق الآن')}
                   </button>
                 </div>
               </div>
@@ -121,13 +126,13 @@ export default function HomePage() {
                 <div>
                   <p className="text-[10px] opacity-90 mb-2">الاطباق الأمريكية</p>
                   <button className="bg-white text-red-600 text-[10px] font-bold px-3 py-1 rounded-full w-full">
-                    تسوق الآن
+                    {getS('btn_shop_now', 'تسوق الآن')}
                   </button>
                 </div>
               </div>
             </div>
           </div>
-        </section>
+        </section>}
 
         {/* Restaurant Section with Tab Navigation */}
         <section>
@@ -142,7 +147,7 @@ export default function HomePage() {
                 }`}
                 onClick={() => setSelectedTab('popular')}
               >
-                المفضلة
+                {getS('btn_tab_favorites', 'المفضلة')}
               </button>
               <button 
                 className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
@@ -152,7 +157,7 @@ export default function HomePage() {
                 }`}
                 onClick={() => setSelectedTab('newest')}
               >
-                الجديدة
+                {getS('btn_tab_new', 'الجديدة')}
               </button>
               <button 
                 className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
@@ -162,7 +167,7 @@ export default function HomePage() {
                 }`}
                 onClick={() => setSelectedTab('nearest')}
               >
-                الأقرب
+                {getS('btn_tab_nearest', 'الأقرب')}
               </button>
               <button 
                 className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
@@ -172,7 +177,7 @@ export default function HomePage() {
                 }`}
                 onClick={() => setSelectedTab('all')}
               >
-                الكل
+                {getS('btn_tab_all', 'الكل')}
               </button>
             </div>
           </div>
@@ -221,7 +226,7 @@ export default function HomePage() {
                           <div className="flex items-center gap-2 text-xs text-gray-500">
                             <span>{restaurant.deliveryTime}</span>
                             <span>•</span>
-                            <span>رسوم التوصيل: {restaurant.deliveryFee} ريال</span>
+                            <span>{getS('text_delivery_fee_prefix', 'رسوم التوصيل')}: {restaurant.deliveryFee} ريال</span>
                           </div>
                         </div>
                         <div className="text-right">
@@ -260,10 +265,10 @@ export default function HomePage() {
                 <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
                   <ShoppingBag className="h-5 w-5 text-white" />
                 </div>
-                <h3 className="text-xl font-bold">طمطوم</h3>
+                <h3 className="text-xl font-bold">{getS('app_name', 'طمطوم')}</h3>
               </div>
               <p className="text-gray-400">
-                أفضل تطبيق توصيل طعام في اليمن. نوصل لك طعامك المفضل بسرعة وأمان.
+                {getS('text_app_name_full', 'أفضل تطبيق توصيل طعام في اليمن')}. نوصل لك طعامك المفضل بسرعة وأمان.
               </p>
             </div>
             
