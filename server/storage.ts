@@ -239,6 +239,30 @@ export interface IStorage {
   createPaymentGateway(gateway: InsertPaymentGateway): Promise<PaymentGateway>;
   updatePaymentGateway(id: string, gateway: Partial<InsertPaymentGateway>): Promise<PaymentGateway | undefined>;
   deletePaymentGateway(id: string): Promise<boolean>;
+
+  // Coupons
+  getCoupons(): Promise<any[]>;
+  getCouponByCode(code: string): Promise<any | undefined>;
+  createCoupon(coupon: any): Promise<any>;
+  updateCoupon(id: string, coupon: any): Promise<any | undefined>;
+  deleteCoupon(id: string): Promise<boolean>;
+  validateCoupon(code: string, orderValue: number, userId?: string, userPhone?: string): Promise<any>;
+  useCoupon(couponId: string, data: any): Promise<void>;
+
+  // Payment Methods
+  getPaymentMethods(): Promise<any[]>;
+  getActivePaymentMethods(): Promise<any[]>;
+  getPaymentMethod(id: string): Promise<any | undefined>;
+  createPaymentMethod(method: any): Promise<any>;
+  updatePaymentMethod(id: string, method: any): Promise<any | undefined>;
+  deletePaymentMethod(id: string): Promise<boolean>;
+  getPaymentMethodDocuments(paymentMethodId: string): Promise<any[]>;
+  createPaymentMethodDocument(doc: any): Promise<any>;
+  updatePaymentMethodDocument(id: string, doc: any): Promise<any | undefined>;
+  deletePaymentMethodDocument(id: string): Promise<boolean>;
+
+  // Reporting
+  getDetailedReport(filters: any): Promise<any>;
 }
 
 export class MemStorage implements IStorage {

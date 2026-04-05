@@ -11,6 +11,7 @@ import {
   deliveryFeeSettings, deliveryZones, financialReports,
   geoZones, deliveryRules, deliveryDiscounts,
   messages, auditLogs, paymentGateways,
+  paymentMethods, paymentMethodDocuments, coupons, couponUsages,
   type AdminUser, type InsertAdminUser,
   type Category, type InsertCategory,
   type Restaurant, type InsertRestaurant,
@@ -38,7 +39,11 @@ import {
   type DeliveryDiscount, type InsertDeliveryDiscount,
   type Message, type InsertMessage,
   type AuditLog, type InsertAuditLog,
-  type PaymentGateway, type InsertPaymentGateway
+  type PaymentGateway, type InsertPaymentGateway,
+  type PaymentMethod, type InsertPaymentMethod,
+  type PaymentMethodDocument, type InsertPaymentMethodDocument,
+  type Coupon, type InsertCoupon,
+  type CouponUsage, type InsertCouponUsage
 } from "@shared/schema";
 import { IStorage } from "./storage";
 import { eq, and, desc, sql, or, like, asc, inArray } from "drizzle-orm";
@@ -1198,6 +1203,11 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   }
 
   // Order Tracking Functions
+  async createOrderTracking(tracking: any): Promise<any> {
+    const [newTracking] = await this.db.insert(orderTracking).values(tracking).returning();
+    return newTracking;
+  }
+
  
 
   // Cart Functions - وظائف السلة
@@ -2040,6 +2050,230 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   async deletePaymentGateway(id: string): Promise<boolean> {
     const result = await this.db.delete(paymentGateways).where(eq(paymentGateways.id, id));
     return result.rowCount > 0;
+  }
+
+  // Payment Methods (Saudi payment methods)
+  async getPaymentMethods(): Promise<PaymentMethod[]> {
+    return await this.db.select().from(paymentMethods).orderBy(asc(paymentMethods.sortOrder));
+  }
+
+  async getActivePaymentMethods(): Promise<PaymentMethod[]> {
+    return await this.db.select().from(paymentMethods).where(eq(paymentMethods.isActive, true)).orderBy(asc(paymentMethods.sortOrder));
+  }
+
+  async getPaymentMethod(id: string): Promise<PaymentMethod | undefined> {
+    const [method] = await this.db.select().from(paymentMethods).where(eq(paymentMethods.id, id));
+    return method;
+  }
+
+  async createPaymentMethod(method: InsertPaymentMethod): Promise<PaymentMethod> {
+    const [newMethod] = await this.db.insert(paymentMethods).values(method).returning();
+    return newMethod;
+  }
+
+  async updatePaymentMethod(id: string, method: Partial<InsertPaymentMethod>): Promise<PaymentMethod | undefined> {
+    const [updated] = await this.db.update(paymentMethods).set({ ...method, updatedAt: new Date() }).where(eq(paymentMethods.id, id)).returning();
+    return updated;
+  }
+
+  async deletePaymentMethod(id: string): Promise<boolean> {
+    await this.db.delete(paymentMethodDocuments).where(eq(paymentMethodDocuments.paymentMethodId, id));
+    const result = await this.db.delete(paymentMethods).where(eq(paymentMethods.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getPaymentMethodDocuments(paymentMethodId: string): Promise<PaymentMethodDocument[]> {
+    return await this.db.select().from(paymentMethodDocuments).where(eq(paymentMethodDocuments.paymentMethodId, paymentMethodId));
+  }
+
+  async createPaymentMethodDocument(doc: InsertPaymentMethodDocument): Promise<PaymentMethodDocument> {
+    const [newDoc] = await this.db.insert(paymentMethodDocuments).values(doc).returning();
+    return newDoc;
+  }
+
+  async updatePaymentMethodDocument(id: string, doc: Partial<InsertPaymentMethodDocument>): Promise<PaymentMethodDocument | undefined> {
+    const [updated] = await this.db.update(paymentMethodDocuments).set({ ...doc, updatedAt: new Date() }).where(eq(paymentMethodDocuments.id, id)).returning();
+    return updated;
+  }
+
+  async deletePaymentMethodDocument(id: string): Promise<boolean> {
+    const result = await this.db.delete(paymentMethodDocuments).where(eq(paymentMethodDocuments.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Coupons
+  async getCoupons(): Promise<Coupon[]> {
+    return await this.db.select().from(coupons).orderBy(desc(coupons.createdAt));
+  }
+
+  async getCouponByCode(code: string): Promise<Coupon | undefined> {
+    const [coupon] = await this.db.select().from(coupons).where(eq(coupons.code, code.toUpperCase()));
+    return coupon;
+  }
+
+  async createCoupon(couponData: InsertCoupon): Promise<Coupon> {
+    const data = { ...couponData, code: couponData.code.toUpperCase() };
+    const [newCoupon] = await this.db.insert(coupons).values(data).returning();
+    return newCoupon;
+  }
+
+  async updateCoupon(id: string, couponData: Partial<InsertCoupon>): Promise<Coupon | undefined> {
+    const updateData: any = { ...couponData, updatedAt: new Date() };
+    if (updateData.code) updateData.code = updateData.code.toUpperCase();
+    const [updated] = await this.db.update(coupons).set(updateData).where(eq(coupons.id, id)).returning();
+    return updated;
+  }
+
+  async deleteCoupon(id: string): Promise<boolean> {
+    const result = await this.db.delete(coupons).where(eq(coupons.id, id));
+    return result.rowCount > 0;
+  }
+
+  async validateCoupon(code: string, orderValue: number, userId?: string, userPhone?: string): Promise<{ valid: boolean; coupon?: Coupon; discount?: number; message?: string }> {
+    const coupon = await this.getCouponByCode(code);
+    if (!coupon) return { valid: false, message: "الكوبون غير موجود" };
+    if (!coupon.isActive) return { valid: false, message: "الكوبون غير نشط" };
+    
+    const now = new Date();
+    if (coupon.startDate && new Date(coupon.startDate) > now) return { valid: false, message: "الكوبون لم يبدأ بعد" };
+    if (coupon.endDate && new Date(coupon.endDate) < now) return { valid: false, message: "انتهت صلاحية الكوبون" };
+    if (coupon.minOrderValue && orderValue < parseFloat(String(coupon.minOrderValue))) {
+      return { valid: false, message: `الحد الأدنى للطلب ${coupon.minOrderValue} ريال` };
+    }
+    if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) {
+      return { valid: false, message: "تم استنفاذ الكوبون" };
+    }
+
+    let discount = 0;
+    if (coupon.type === 'percentage') {
+      discount = (orderValue * parseFloat(String(coupon.value))) / 100;
+      if (coupon.maxDiscount) discount = Math.min(discount, parseFloat(String(coupon.maxDiscount)));
+    } else {
+      discount = parseFloat(String(coupon.value));
+    }
+    discount = Math.min(discount, orderValue);
+
+    return { valid: true, coupon, discount };
+  }
+
+  async useCoupon(couponId: string, data: InsertCouponUsage): Promise<void> {
+    await this.db.insert(couponUsages).values(data);
+    await this.db.update(coupons).set({ usageCount: sql`${coupons.usageCount} + 1` }).where(eq(coupons.id, couponId));
+  }
+
+  // Detailed Reports
+  async getDetailedReport(filters: any): Promise<any> {
+    const { type, startDate, endDate } = filters || {};
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+
+    const allOrders = await this.db.select().from(orders)
+      .where(and(sql`${orders.createdAt} >= ${start}`, sql`${orders.createdAt} <= ${end}`));
+
+    const statusLabel: Record<string, string> = {
+      pending: 'قيد الانتظار',
+      confirmed: 'مؤكد',
+      preparing: 'قيد التحضير',
+      ready: 'جاهز',
+      picked_up: 'تم الاستلام',
+      on_the_way: 'في الطريق',
+      delivered: 'تم التوصيل',
+      cancelled: 'ملغى',
+    };
+    const statusColor: Record<string, string> = {
+      pending: 'bg-yellow-100 text-yellow-700',
+      confirmed: 'bg-blue-100 text-blue-700',
+      preparing: 'bg-orange-100 text-orange-700',
+      ready: 'bg-purple-100 text-purple-700',
+      picked_up: 'bg-indigo-100 text-indigo-700',
+      on_the_way: 'bg-cyan-100 text-cyan-700',
+      delivered: 'bg-green-100 text-green-700',
+      cancelled: 'bg-red-100 text-red-700',
+    };
+
+    if (type === 'orders') {
+      const total = allOrders.reduce((s, o) => s + parseFloat(String(o.total || 0)), 0);
+      const delivered = allOrders.filter(o => o.status === 'delivered').length;
+      const cancelled = allOrders.filter(o => o.status === 'cancelled').length;
+      const avgOrder = allOrders.length > 0 ? (total / allOrders.length).toFixed(2) : '0';
+      const summary = [
+        { name: 'إجمالي الطلبات', details: `من ${start.toLocaleDateString('ar')} إلى ${end.toLocaleDateString('ar')}`, value: `${allOrders.length} طلب`, status: 'إجمالي', statusColor: 'bg-blue-100 text-blue-700' },
+        { name: 'إجمالي الإيرادات', details: 'مجموع قيم جميع الطلبات', value: `${total.toFixed(2)} ر.س`, status: 'إيرادات', statusColor: 'bg-green-100 text-green-700' },
+        { name: 'طلبات مكتملة', details: 'الطلبات التي تم توصيلها بنجاح', value: `${delivered} طلب`, status: 'مكتمل', statusColor: 'bg-green-100 text-green-700' },
+        { name: 'طلبات ملغاة', details: 'الطلبات التي تم إلغاؤها', value: `${cancelled} طلب`, status: 'ملغى', statusColor: 'bg-red-100 text-red-700' },
+        { name: 'معدل إتمام الطلبات', details: 'نسبة الطلبات المكتملة', value: allOrders.length > 0 ? `${((delivered / allOrders.length) * 100).toFixed(1)}%` : '0%', status: 'نسبة', statusColor: 'bg-purple-100 text-purple-700' },
+        { name: 'متوسط قيمة الطلب', details: 'متوسط قيمة الطلب الواحد', value: `${avgOrder} ر.س`, status: 'متوسط', statusColor: 'bg-orange-100 text-orange-700' },
+      ];
+      const orderRows = allOrders.slice(0, 50).map(o => ({
+        name: `طلب #${o.orderNumber || o.id}`,
+        details: `${new Date(o.createdAt!).toLocaleDateString('ar')} - ${o.customerName || 'عميل'}`,
+        value: `${parseFloat(String(o.total || 0)).toFixed(2)} ر.س`,
+        status: statusLabel[o.status || ''] || o.status || '',
+        statusColor: statusColor[o.status || ''] || 'bg-gray-100 text-gray-700',
+      }));
+      return { data: [...summary, ...orderRows] };
+    }
+
+    if (!type || type === 'products') {
+      const items = await this.db.select().from(menuItems);
+      const data = items.map(item => ({
+        name: item.name,
+        details: item.category || '',
+        value: `${parseFloat(String(item.price || 0)).toFixed(2)} ر.س`,
+        status: item.isAvailable ? 'متاح' : 'غير متاح',
+        statusColor: item.isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700',
+      }));
+      return { data };
+    }
+
+    if (type === 'drivers') {
+      const driversData = await this.db.select().from(drivers);
+      const data = driversData.map(d => ({
+        name: d.name || d.phone,
+        details: d.phone || '',
+        value: `${allOrders.filter(o => o.driverId === d.id).length} توصيلة`,
+        status: d.isActive ? 'نشط' : 'غير نشط',
+        statusColor: d.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700',
+      }));
+      return { data };
+    }
+
+    if (type === 'customers') {
+      const usersData = await this.db.select().from(users);
+      const data = usersData.map(u => ({
+        name: u.name || u.phone,
+        details: u.phone || '',
+        value: `${allOrders.filter(o => o.customerId === u.id).length} طلب`,
+        status: u.isActive ? 'نشط' : 'غير نشط',
+        statusColor: u.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700',
+      }));
+      return { data };
+    }
+
+    if (type === 'admins') {
+      const adminsData = await this.db.select().from(adminUsers);
+      const data = adminsData.map((a: any) => ({
+        name: a.name || a.email,
+        details: a.phone || a.email || '',
+        value: a.userType === 'admin' ? 'مدير رئيسي' : 'مشرف فرعي',
+        status: a.isActive ? 'نشط' : 'غير نشط',
+        statusColor: a.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700',
+      }));
+      return { data };
+    }
+
+    const total = allOrders.reduce((s, o) => s + parseFloat(String(o.total || 0)), 0);
+    const delivered = allOrders.filter(o => o.status === 'delivered').length;
+    const cancelled = allOrders.filter(o => o.status === 'cancelled').length;
+    return {
+      data: [
+        { name: 'إجمالي الطلبات', details: `من ${start.toLocaleDateString('ar')} إلى ${end.toLocaleDateString('ar')}`, value: `${allOrders.length} طلب`, status: 'إجمالي', statusColor: 'bg-blue-100 text-blue-700' },
+        { name: 'إجمالي الإيرادات', details: 'مجموع قيم جميع الطلبات', value: `${total.toFixed(2)} ر.س`, status: 'إيرادات', statusColor: 'bg-green-100 text-green-700' },
+        { name: 'طلبات مكتملة', details: 'الطلبات التي تم توصيلها', value: `${delivered} طلب`, status: 'مكتمل', statusColor: 'bg-green-100 text-green-700' },
+        { name: 'طلبات ملغاة', details: 'الطلبات التي تم إلغاؤها', value: `${cancelled} طلب`, status: 'ملغى', statusColor: 'bg-red-100 text-red-700' },
+        { name: 'معدل الإتمام', details: 'نسبة الطلبات المكتملة', value: allOrders.length > 0 ? `${((delivered / allOrders.length) * 100).toFixed(1)}%` : '0%', status: 'نسبة', statusColor: 'bg-purple-100 text-purple-700' },
+      ]
+    };
   }
 }
 

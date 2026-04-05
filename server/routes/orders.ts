@@ -4,10 +4,6 @@ import { calculateDeliveryFee } from "../services/deliveryFeeService";
 import { formatCurrency } from "../../shared/utils";
 import { canOrderFromRestaurant } from "../../utils/restaurantHours";
 import { randomUUID } from "crypto";
-import { db } from "../db";
-import { coupons, schema } from "../../shared/schema";
-import { eq, and, gte, lte, sql } from "drizzle-orm";
-
 
 const router = express.Router();
 
@@ -106,49 +102,10 @@ router.post("/", async (req, res) => {
       restaurantCommissionAmount = subtotalNum;
     }
     
-// Validate and apply coupon
-let couponCode = null;
-let couponDiscountNum = 0;
-const clientCouponCode = req.body.couponCode;
-if (clientCouponCode) {
-  const coupon = await db.query.coupons.findFirst({
-    where: and(
-      eq(schema.coupons.code, clientCouponCode),
-      eq(schema.coupons.isActive, true),
-      lte(sql`EXTRACT(epoch FROM CURRENT_TIMESTAMP)`, sql`EXTRACT(epoch FROM ${schema.coupons.validUntil}::timestamp)`),
-      gte(sql`EXTRACT(epoch FROM CURRENT_TIMESTAMP)`, sql`EXTRACT(epoch FROM ${schema.coupons.validFrom}::timestamp)`),
-      lte(schema.coupons.usedCount, schema.coupons.maxUses),
-      gte(subtotalNum, parseFloat(schema.coupons.minOrderAmount.toString()))
-    ).and(
-      or(
-        sql`${schema.coupons.restaurantId} IS NULL`,
-        eq(schema.coupons.restaurantId, restaurantId)
-      )
-    ),
-  });
-  if (coupon) {
-    couponCode = clientCouponCode;
-    couponDiscountNum = coupon.discountType === 'percentage' ?
-      subtotalNum * (parseFloat(coupon.discountValue.toString()) / 100) :
-      Math.min(subtotalNum, parseFloat(coupon.discountValue.toString()));
-    // Increment usedCount
-    await db.update(schema.coupons)
-      .set({ usedCount: sql`${schema.coupons.usedCount} + 1` })
-      .where(eq(schema.coupons.id, coupon.id));
-  } else {
-    return res.status(400).json({ error: "الكوبون غير صالح" });
-  }
-}
-
-// Apply discount to totals
-const discountedSubtotal = subtotalNum - couponDiscountNum;
-const totalNum = discountedSubtotal + deliveryFeeNum;
-
-// حساب عمولة السائق الأولية (سيتم تحديثها عند التعيين)
-const defaultDriverCommissionRate = 70; // 70% من رسوم التوصيل
-const driverEarnings = (deliveryFeeNum * defaultDriverCommissionRate) / 100;
-const companyEarnings = restaurantCommissionAmount + (deliveryFeeNum - driverEarnings);
-
+    // حساب عمولة السائق الأولية (سيتم تحديثها عند التعيين)
+    const defaultDriverCommissionRate = 70; // 70% من رسوم التوصيل
+    const driverEarnings = (deliveryFeeNum * defaultDriverCommissionRate) / 100;
+    const companyEarnings = restaurantCommissionAmount + (deliveryFeeNum - driverEarnings);
 
     // إنشاء الطلب
     const orderData = {

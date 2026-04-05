@@ -10,6 +10,7 @@ import ordersRoutes from "./routes/orders";
 import deliveryFeeRoutes from "./routes/delivery-fees";
 import { adminRoutes } from "./routes/admin";
 import { registerAdvancedRoutes } from "./routes/advanced";
+import { publicRoutes } from "./routes/public";
 import { 
   insertRestaurantSchema, 
   insertMenuItemSchema, 
@@ -36,8 +37,8 @@ import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
-  // تم حذف مسارات المصادقة - تم إزالة نظام المصادقة بالكامل
-
+  // Auth Routes
+  app.use("/api/auth", authRoutes);
 
   // Admin and Advanced Routes
   app.use("/api/admin", adminRoutes);
@@ -878,6 +879,9 @@ app.get("/api/notifications", async (req, res) => {
   // Register delivery fee routes
   app.use("/api/delivery-fees", deliveryFeeRoutes);
 
+  // Register public routes (including Flutter API)
+  app.use("/api", publicRoutes);
+
   // Enhanced notifications endpoint
   app.get("/api/notifications", async (req, res) => {
     try {
@@ -922,6 +926,35 @@ app.get("/api/notifications", async (req, res) => {
     } catch (error) {
       console.error('Error marking notification as read:', error);
       res.status(500).json({ message: "Failed to update notification" });
+    }
+  });
+
+  // Public Payment Methods Route
+  app.get("/api/payment-methods", async (req, res) => {
+    try {
+      const methods = await (storage as any).getActivePaymentMethods();
+      const methodsWithDocs = await Promise.all(methods.map(async (m: any) => {
+        const docs = await (storage as any).getPaymentMethodDocuments(m.id);
+        return { ...m, documents: docs };
+      }));
+      res.json(methodsWithDocs);
+    } catch (error) {
+      console.error("خطأ في جلب طرق الدفع:", error);
+      res.status(500).json({ error: "خطأ في الخادم" });
+    }
+  });
+
+  // Coupon Validation Route
+  app.post("/api/coupons/validate", async (req, res) => {
+    try {
+      const { code, orderValue, userId, userPhone } = req.body;
+      if (!code) return res.status(400).json({ error: "كود الكوبون مطلوب" });
+      if (!orderValue) return res.status(400).json({ error: "قيمة الطلب مطلوبة" });
+      const result = await (storage as any).validateCoupon(code, parseFloat(orderValue), userId, userPhone);
+      res.json(result);
+    } catch (error) {
+      console.error("خطأ في التحقق من الكوبون:", error);
+      res.status(500).json({ error: "خطأ في الخادم" });
     }
   });
 

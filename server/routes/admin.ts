@@ -1,7 +1,6 @@
 import express from "express";
+import bcrypt from "bcryptjs";
 import { storage } from "../storage";
-// تم حذف نظام المصادقة
-// تم حذف bcrypt - لا حاجة لتشفير كلمات المرور بعد إزالة نظام المصادقة
 import { z } from "zod";
 import { eq, and, desc, sql, or, like, asc, inArray } from "drizzle-orm";
 import {
@@ -43,8 +42,7 @@ import {
   driverTransactions,
   driverCommissions,
   driverWithdrawals,
-  coupons,
-  insertCouponSchema
+  auditLogs
 } from "@shared/schema";
 import { DatabaseStorage } from "../db";
 import { coerceRequestData } from "../utils/coercion";
@@ -65,7 +63,6 @@ const schema = {
   customers,
   userAddresses,
   orders,
-  coupons,
   specialOffers,
   notifications,
   ratings,
@@ -83,9 +80,22 @@ const schema = {
   driverWithdrawals
 };
 
-// تم حذف middleware المصادقة - يمكن الوصول المباشر للبيانات بدون مصادقة
-
-// تم حذف جميع عمليات المصادقة - الوصول مباشر للبيانات بدون مصادقة
+// Middleware اختياري للمصادقة - يُضيف req.admin إذا كان التوكن صحيحاً
+router.use(async (req: any, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      const adminUser = await dbStorage.getAdminById(token);
+      if (adminUser && adminUser.isActive) {
+        req.admin = adminUser;
+      }
+    }
+  } catch (e) {
+    // ignore auth errors - proceed without admin context
+  }
+  next();
+});
 
 // لوحة المعلومات
 router.get("/dashboard", async (req, res) => {
@@ -804,8 +814,8 @@ router.get("/reports/restaurants/:id", async (req, res) => {
   }
 }); // <-- قوس الإغلاق الصحيح
 
-export { router as adminRoutes };
-
+// إدارة الموظفين والموارد البشرية
+router.get("/employees", async (req, res) => {
   try {
     const employees = await storage.getEmployees();
     res.json(employees);
@@ -927,6 +937,65 @@ router.put("/leave-requests/:id", async (req, res) => {
     }
     console.error("Error updating leave request:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/drivers", async (req, res) => {
+  try {
+    const drivers = await storage.getDrivers();
+    res.json(drivers);
+  } catch (error) {
+    console.error("Error fetching drivers:", error);
+    res.status(500).json({ error: "فشل في جلب بيانات السائقين" });
+  }
+});
+
+router.get("/drivers/:id/stats", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const driver = await storage.getDriver(id);
+    if (!driver) return res.status(404).json({ error: "السائق غير موجود" });
+    const orders = await storage.getOrders();
+    const driverOrders = orders.filter((o: any) => o.driverId === id);
+    const completedOrders = driverOrders.filter((o: any) => o.status === 'delivered');
+    const totalEarnings = completedOrders.reduce((sum: number, o: any) => sum + parseFloat(o.deliveryFee || '0'), 0);
+    res.json({
+      totalOrders: driverOrders.length,
+      completedOrders: completedOrders.length,
+      totalEarnings: totalEarnings.toFixed(2),
+      rating: driver.rating || 0,
+    });
+  } catch (error) {
+    console.error("Error fetching driver stats:", error);
+    res.status(500).json({ error: "فشل في جلب إحصائيات السائق" });
+  }
+});
+
+router.get("/stats", async (req, res) => {
+  try {
+    const orders = await storage.getOrders();
+    const drivers = await storage.getDrivers();
+    const categories = await storage.getCategories();
+    const restaurants = await storage.getRestaurants();
+    const users = await storage.getUsers();
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const todayOrders = orders.filter((o: any) => new Date(o.createdAt) >= today);
+    const totalRevenue = orders.filter((o: any) => o.status === 'delivered')
+      .reduce((sum: number, o: any) => sum + parseFloat(o.totalAmount || '0'), 0);
+    res.json({
+      totalOrders: orders.length,
+      todayOrders: todayOrders.length,
+      totalDrivers: drivers.length,
+      activeDrivers: drivers.filter((d: any) => d.isAvailable).length,
+      totalCategories: categories.length,
+      totalRestaurants: restaurants.length,
+      totalUsers: users.length,
+      totalRevenue: totalRevenue.toFixed(2),
+    });
+  } catch (error) {
+    console.error("Error fetching stats:", error);
+    res.status(500).json({ error: "فشل في جلب الإحصائيات" });
   }
 });
 
@@ -1393,80 +1462,6 @@ router.get("/special-offers", async (req, res) => {
   }
 });
 
-// إدارة الكوبونات
-router.get("/coupons", async (req, res) => {
-  try {
-    const couponsList = await db.select().from(schema.coupons).orderBy(desc(schema.coupons.createdAt));
-    res.json(couponsList);
-  } catch (error) {
-    console.error("خطأ في جلب الكوبونات:", error);
-    res.status(500).json({ error: "خطأ في الخادم" });
-  }
-});
-
-router.post("/coupons", async (req, res) => {
-  try {
-    const coercedData = coerceRequestData(req.body);
-    const validatedData = insertCouponSchema.parse({
-      ...coercedData,
-      usedCount: coercedData.usedCount || 0
-    });
-    const [newCoupon] = await db.insert(schema.coupons).values(validatedData).returning();
-    res.status(201).json(newCoupon);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "بيانات الكوبون غير صحيحة", details: error.errors });
-    }
-    console.error("خطأ في إنشاء كوبون:", error);
-    res.status(500).json({ error: "خطأ في الخادم" });
-  }
-});
-
-router.put("/coupons/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const coercedData = coerceRequestData(req.body);
-    const validatedData = insertCouponSchema.partial().parse(coercedData);
-    const [updated] = await db.update(schema.coupons)
-      .set({ ...validatedData, updatedAt: new Date() })
-      .where(eq(schema.coupons.id, id))
-      .returning();
-    if (!updated) return res.status(404).json({ error: "الكوبون غير موجود" });
-    res.json(updated);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "بيانات الكوبون غير صحيحة", details: error.errors });
-    }
-    console.error("خطأ في تحديث الكوبون:", error);
-    res.status(500).json({ error: "خطأ في الخادم" });
-  }
-});
-
-router.delete("/coupons/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    await db.delete(schema.coupons).where(eq(schema.coupons.id, id));
-    res.json({ success: true });
-  } catch (error) {
-    console.error("خطأ في حذف الكوبون:", error);
-    res.status(500).json({ error: "خطأ في الخادم" });
-  }
-});
-  try {
-    const offers = await storage.getSpecialOffers();
-    
-    // ترتيب العروض حسب تاريخ الإنشاء (الأحدث أولاً)
-    const sortedOffers = offers.sort((a, b) => 
-      b.createdAt.getTime() - a.createdAt.getTime()
-    );
-    
-    res.json(sortedOffers);
-  } catch (error) {
-    console.error("خطأ في جلب العروض الخاصة:", error);
-    res.status(500).json({ error: "خطأ في الخادم" });
-  }
-});
-
 router.post("/special-offers", async (req, res) => {
   try {
     console.log("Special offer creation request data:", req.body);
@@ -1599,7 +1594,7 @@ router.post("/notifications", async (req: any, res) => {
   try {
     const notificationData = {
       ...req.body,
-      createdBy: req.admin.id
+      createdBy: req.admin?.id || null
     };
     
     const [newNotification] = await db.insert(schema.notifications)
@@ -1638,22 +1633,6 @@ router.put("/settings/:key", async (req, res) => {
     
     res.json(updatedSetting);
   } catch (error) {
-    res.status(500).json({ error: "خطأ في الخادم" });
-  }
-});
-
-// إعدادات واجهة المستخدم (متاحة للعامة)
-router.get("/ui-settings", async (req, res) => {
-  try {
-    const settings = await db
-      .select()
-      .from(schema.systemSettings)
-      .where(eq(schema.systemSettings.isActive, true))
-      .orderBy(schema.systemSettings.category, schema.systemSettings.key);
-    
-    res.json(settings);
-  } catch (error) {
-    console.error("خطأ في جلب إعدادات واجهة المستخدم:", error);
     res.status(500).json({ error: "خطأ في الخادم" });
   }
 });
@@ -1697,8 +1676,6 @@ router.put("/business-hours", async (req, res) => {
     res.status(500).json({ error: "خطأ في الخادم" });
   }
 });
-
-export { router as adminRoutes };
 
 // إدارة المستخدمين الموحدة (عملاء، سائقين، مديرين)
 router.get("/users", async (req, res) => {
@@ -1911,86 +1888,7 @@ router.delete("/users/:id", async (req, res) => {
   }
 });
 
-// إدارة الملف الشخصي للمدير
-router.get("/profile", async (req: any, res) => {
-  try {
-    const admin = req.admin;
-    // إرجاع بيانات المدير (بدون كلمة المرور)
-    const adminProfile = {
-      id: admin.id,
-      name: admin.name,
-      email: admin.email,
-      username: admin.username,
-      phone: admin.phone,
-      userType: admin.userType,
-      isActive: admin.isActive,
-      createdAt: admin.createdAt
-    };
-    
-    res.json(adminProfile);
-  } catch (error) {
-    console.error("خطأ في جلب الملف الشخصي:", error);
-    res.status(500).json({ error: "خطأ في الخادم" });
-  }
-});
-
-// تحديث الملف الشخصي للمدير
-router.put("/profile", async (req: any, res) => {
-  try {
-    const { name, email, username, phone } = req.body;
-    const adminId = req.admin.id;
-
-    if (!name || !email) {
-      return res.status(400).json({ error: "الاسم والبريد الإلكتروني مطلوبان" });
-    }
-
-    // التحقق من عدم تكرار البريد الإلكتروني
-    const existingAdmin = await db.select().from(schema.adminUsers).where(
-      and(
-        eq(schema.adminUsers.email, email),
-        sql`${schema.adminUsers.id} != ${adminId}`
-      )
-    );
-
-    if (existingAdmin.length > 0) {
-      return res.status(400).json({ error: "البريد الإلكتروني مستخدم بالفعل" });
-    }
-
-    // تحديث البيانات
-    const [updatedAdmin] = await db.update(schema.adminUsers)
-      .set({
-        name,
-        email,
-        username: username || null,
-        phone: phone || null
-      })
-      .where(eq(schema.adminUsers.id, adminId))
-      .returning();
-
-    if (!updatedAdmin) {
-      return res.status(404).json({ error: "المدير غير موجود" });
-    }
-
-    // إرجاع البيانات المحدثة (بدون كلمة المرور)
-    const adminProfile = {
-      id: updatedAdmin.id,
-      name: updatedAdmin.name,
-      email: updatedAdmin.email,
-      username: updatedAdmin.username,
-      phone: updatedAdmin.phone,
-      userType: updatedAdmin.userType,
-      isActive: updatedAdmin.isActive,
-      createdAt: updatedAdmin.createdAt
-    };
-
-    res.json(adminProfile);
-  } catch (error) {
-    console.error("خطأ في تحديث الملف الشخصي:", error);
-    res.status(500).json({ error: "خطأ في الخادم" });
-  }
-});
-
-// تم حذف مسار تغيير كلمة المرور - لا حاجة له بعد إزالة نظام المصادقة
+// تم دمج مسارات الملف الشخصي في القسم الموجود أسفل (Admin Profile Routes)
 
 // UI Settings Routes
 router.get("/ui-settings", async (req, res) => {
@@ -2032,6 +1930,488 @@ router.put("/ui-settings/:key", async (req, res) => {
     res.json(setting);
   } catch (error) {
     console.error("خطأ في تحديث إعداد الواجهة:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+// Coupon Routes
+router.get("/coupons", async (req, res) => {
+  try {
+    const coupons = await storage.getCoupons();
+    res.json(coupons);
+  } catch (error) {
+    console.error("خطأ في جلب الكوبونات:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.post("/coupons", async (req, res) => {
+  try {
+    const coupon = await storage.createCoupon(req.body);
+    res.status(201).json(coupon);
+  } catch (error) {
+    console.error("خطأ في إضافة الكوبون:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.put("/coupons/:id", async (req, res) => {
+  try {
+    const coupon = await storage.updateCoupon(req.params.id, req.body);
+    if (!coupon) return res.status(404).json({ error: "الكوبون غير موجود" });
+    res.json(coupon);
+  } catch (error) {
+    console.error("خطأ في تحديث الكوبون:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.delete("/coupons/:id", async (req, res) => {
+  try {
+    const success = await storage.deleteCoupon(req.params.id);
+    if (!success) return res.status(404).json({ error: "الكوبون غير موجود" });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("خطأ في حذف الكوبون:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+// Detailed Reports Routes
+router.get("/reports/detailed", async (req, res) => {
+  try {
+    const filters = {
+      type: req.query.type,
+      startDate: req.query.startDate,
+      endDate: req.query.endDate
+    };
+    const report = await storage.getDetailedReport(filters);
+    res.json(report);
+  } catch (error) {
+    console.error("خطأ في جلب التقرير التفصيلي:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+// Payment Methods Routes
+router.get("/payment-methods", async (req, res) => {
+  try {
+    const methods = await storage.getPaymentMethods();
+    const methodsWithDocs = await Promise.all(methods.map(async (m: any) => {
+      const docs = await storage.getPaymentMethodDocuments(m.id);
+      return { ...m, documents: docs };
+    }));
+    res.json(methodsWithDocs);
+  } catch (error) {
+    console.error("خطأ في جلب طرق الدفع:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.post("/payment-methods", async (req, res) => {
+  try {
+    const method = await storage.createPaymentMethod(req.body);
+    res.status(201).json(method);
+  } catch (error) {
+    console.error("خطأ في إضافة طريقة الدفع:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.put("/payment-methods/:id", async (req, res) => {
+  try {
+    const method = await storage.updatePaymentMethod(req.params.id, req.body);
+    if (!method) return res.status(404).json({ error: "طريقة الدفع غير موجودة" });
+    res.json(method);
+  } catch (error) {
+    console.error("خطأ في تحديث طريقة الدفع:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.delete("/payment-methods/:id", async (req, res) => {
+  try {
+    const success = await storage.deletePaymentMethod(req.params.id);
+    if (!success) return res.status(404).json({ error: "طريقة الدفع غير موجودة" });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("خطأ في حذف طريقة الدفع:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.get("/payment-methods/:id/documents", async (req, res) => {
+  try {
+    const docs = await storage.getPaymentMethodDocuments(req.params.id);
+    res.json(docs);
+  } catch (error) {
+    console.error("خطأ في جلب وثائق طريقة الدفع:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.post("/payment-methods/:id/documents", async (req, res) => {
+  try {
+    const doc = await storage.createPaymentMethodDocument({ ...req.body, paymentMethodId: req.params.id });
+    res.status(201).json(doc);
+  } catch (error) {
+    console.error("خطأ في إضافة وثيقة:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.put("/payment-methods/:id/documents/:docId", async (req, res) => {
+  try {
+    const doc = await storage.updatePaymentMethodDocument(req.params.docId, req.body);
+    if (!doc) return res.status(404).json({ error: "الوثيقة غير موجودة" });
+    res.json(doc);
+  } catch (error) {
+    console.error("خطأ في تحديث الوثيقة:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.delete("/payment-methods/:id/documents/:docId", async (req, res) => {
+  try {
+    const success = await storage.deletePaymentMethodDocument(req.params.docId);
+    if (!success) return res.status(404).json({ error: "الوثيقة غير موجودة" });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("خطأ في حذف الوثيقة:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+
+router.post("/orders/reset-numbers", async (req, res) => {
+  try {
+    const allOrders = await storage.getOrders();
+    const sorted = [...allOrders].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+    const prefix = req.body.prefix || '';
+    for (let i = 0; i < sorted.length; i++) {
+      const newNumber = `${prefix}${String(i + 1).padStart(4, '0')}`;
+      await db.update(orders)
+        .set({ orderNumber: newNumber })
+        .where(eq(orders.id, sorted[i].id));
+    }
+    res.json({ success: true, message: `تم إعادة تسلسل ${sorted.length} طلب بنجاح` });
+  } catch (error) {
+    console.error("خطأ في إعادة تسلسل أرقام الطلبات:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.get("/backup", async (req, res) => {
+  try {
+    const [
+      allOrders, allDrivers, allRestaurants, allCategories,
+      allMenuItems, allSpecialOffers, allUsers
+    ] = await Promise.all([
+      storage.getOrders(),
+      storage.getDrivers(),
+      storage.getRestaurants(),
+      storage.getCategories(),
+      storage.getAllMenuItems(),
+      storage.getSpecialOffers(),
+      storage.getUsers ? storage.getUsers() : [],
+    ]);
+
+    const backup = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      data: {
+        orders: allOrders,
+        drivers: allDrivers,
+        restaurants: allRestaurants,
+        categories: allCategories,
+        menuItems: allMenuItems,
+        specialOffers: allSpecialOffers,
+        users: allUsers,
+      },
+      counts: {
+        orders: allOrders.length,
+        drivers: allDrivers.length,
+        restaurants: allRestaurants.length,
+        categories: allCategories.length,
+        menuItems: allMenuItems.length,
+        specialOffers: allSpecialOffers.length,
+        users: allUsers.length,
+      }
+    };
+
+    const filename = `tamtom-backup-${new Date().toISOString().split('T')[0]}.json`;
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.json(backup);
+  } catch (error) {
+    console.error("خطأ في إنشاء النسخة الاحتياطية:", error);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.get("/backup/stats", async (req, res) => {
+  try {
+    const [
+      allOrders, allDrivers, allRestaurants, allCategories,
+      allMenuItems, allSpecialOffers
+    ] = await Promise.all([
+      storage.getOrders(),
+      storage.getDrivers(),
+      storage.getRestaurants(),
+      storage.getCategories(),
+      storage.getAllMenuItems(),
+      storage.getSpecialOffers(),
+    ]);
+
+    res.json({
+      counts: {
+        orders: allOrders.length,
+        drivers: allDrivers.length,
+        restaurants: allRestaurants.length,
+        categories: allCategories.length,
+        menuItems: allMenuItems.length,
+        specialOffers: allSpecialOffers.length,
+      },
+      lastBackup: null,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+// Admin Profile Routes
+router.get("/profile", async (req: any, res) => {
+  try {
+    let admin: any = null;
+    if (req.admin) {
+      admin = req.admin;
+    } else {
+      const [found] = await db.select().from(adminUsers).where(eq(adminUsers.userType, 'admin')).limit(1);
+      admin = found;
+    }
+    if (!admin) return res.status(404).json({ error: "لم يتم العثور على ملف المدير" });
+    const { password: _, ...safeAdmin } = admin as any;
+    res.json(safeAdmin);
+  } catch (error) {
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.put("/profile", async (req: any, res) => {
+  try {
+    const { name, email, username, phone } = req.body;
+    let adminId: string;
+    if (req.admin) {
+      adminId = req.admin.id;
+    } else {
+      const [found] = await db.select().from(adminUsers).where(eq(adminUsers.userType, 'admin')).limit(1);
+      if (!found) return res.status(404).json({ error: "لم يتم العثور على ملف المدير" });
+      adminId = found.id;
+    }
+    const [updated] = await db.update(adminUsers).set({ name, email, username, phone }).where(eq(adminUsers.id, adminId)).returning();
+    if (!updated) return res.status(404).json({ error: "لم يتم العثور على ملف المدير" });
+    const { password: _, ...safeAdmin } = updated as any;
+    res.json(safeAdmin);
+  } catch (error) {
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.put("/change-password", async (req: any, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    let admin: any = null;
+    if (req.admin) {
+      const [found] = await db.select().from(adminUsers).where(eq(adminUsers.id, req.admin.id)).limit(1);
+      admin = found;
+    } else {
+      const [found] = await db.select().from(adminUsers).where(eq(adminUsers.userType, 'admin')).limit(1);
+      admin = found;
+    }
+    if (!admin) return res.status(404).json({ error: "لم يتم العثور على المدير" });
+    const isValid = await bcrypt.compare(currentPassword, admin.password || '');
+    if (!isValid) {
+      return res.status(400).json({ error: "كلمة المرور الحالية غير صحيحة" });
+    }
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await db.update(adminUsers).set({ password: hashed } as any).where(eq(adminUsers.id, admin.id));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+// Sub-admins Management
+router.get("/sub-admins", async (req, res) => {
+  try {
+    const subAdmins = await db.select().from(adminUsers).where(eq(adminUsers.userType, 'sub_admin'));
+    const safe = subAdmins.map((u: any) => { const { password: _, ...rest } = u; return rest; });
+    res.json(safe);
+  } catch (error) {
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.post("/sub-admins", async (req, res) => {
+  try {
+    const { name, phone, password, permissions, isActive } = req.body;
+    let { email, username } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: "الاسم مطلوب" });
+    if (!phone || !phone.trim()) return res.status(400).json({ error: "رقم الهاتف مطلوب" });
+    if (!password) return res.status(400).json({ error: "كلمة المرور مطلوبة" });
+    // توليد بريد إلكتروني افتراضي إذا لم يُقدَّم
+    if (!email || !email.trim()) {
+      email = `${phone.replace(/\D/g, '')}@subadmin.local`;
+    }
+    const hashed = await bcrypt.hash(password, 10);
+    const [newSubAdmin] = await db.insert(adminUsers).values({
+      name, email, username: username || null, phone,
+      password: hashed,
+      userType: 'sub_admin',
+      permissions: typeof permissions === 'string' ? permissions : JSON.stringify(permissions || []),
+      isActive: isActive !== false,
+    } as any).returning();
+    const { password: _, ...safe } = newSubAdmin as any;
+    res.status(201).json(safe);
+  } catch (error: any) {
+    if (error?.code === '23505') {
+      return res.status(409).json({ error: "رقم الهاتف أو البريد الإلكتروني مستخدم بالفعل" });
+    }
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.put("/sub-admins/:id", async (req, res) => {
+  try {
+    const { name, phone, password, permissions, isActive } = req.body;
+    let { email, username } = req.body;
+    const updateData: any = { name, phone, isActive };
+    if (email !== undefined) updateData.email = email;
+    if (username !== undefined) updateData.username = username || null;
+    if (password) {
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+    if (permissions !== undefined) {
+      updateData.permissions = typeof permissions === 'string' ? permissions : JSON.stringify(permissions);
+    }
+    const [updated] = await db.update(adminUsers).set(updateData).where(eq(adminUsers.id, req.params.id)).returning();
+    if (!updated) return res.status(404).json({ error: "المشرف غير موجود" });
+    const { password: _, ...safe } = updated as any;
+    res.json(safe);
+  } catch (error) {
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.delete("/sub-admins/:id", async (req, res) => {
+  try {
+    await db.delete(adminUsers).where(eq(adminUsers.id, req.params.id));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+// ===== Security Logging Routes =====
+
+router.get("/security/settings", async (req, res) => {
+  try {
+    res.json({
+      twoFactorEnabled: false,
+      sessionTimeout: 60,
+      passwordComplexity: 'medium',
+      ipWhitelist: [],
+      lastAudit: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.get("/security/logs", async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const logs = await db
+      .select({
+        id: auditLogs.id,
+        adminId: auditLogs.adminId,
+        action: auditLogs.action,
+        entityType: auditLogs.entityType,
+        entityId: auditLogs.entityId,
+        ipAddress: auditLogs.ipAddress,
+        createdAt: auditLogs.createdAt,
+        oldData: auditLogs.oldData,
+        newData: auditLogs.newData,
+      })
+      .from(auditLogs)
+      .where(sql`${auditLogs.entityType} = 'auth'`)
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit);
+
+    const adminIds = [...new Set(logs.map(l => l.adminId))];
+    let adminMap: Record<string, string> = {};
+    if (adminIds.length > 0) {
+      const admins = await db.select({ id: adminUsers.id, name: adminUsers.name }).from(adminUsers).where(inArray(adminUsers.id, adminIds));
+      admins.forEach(a => { adminMap[a.id] = a.name; });
+    }
+
+    const formatted = logs.map(log => ({
+      id: log.id,
+      userId: log.adminId,
+      userName: adminMap[log.adminId] || 'مستخدم',
+      action: log.action === 'login' ? 'تسجيل الدخول' : log.action === 'logout' ? 'تسجيل الخروج' : log.action,
+      ipAddress: log.ipAddress || 'غير معروف',
+      device: log.oldData ? (() => { try { return JSON.parse(log.oldData)?.device || 'غير معروف'; } catch { return 'غير معروف'; } })() : 'غير معروف',
+      location: 'اليمن',
+      createdAt: log.createdAt,
+      status: (log.newData ? (() => { try { return JSON.parse(log.newData)?.status || 'success'; } catch { return 'success'; } })() : 'success') as 'success' | 'failure' | 'warning',
+    }));
+
+    res.json(formatted);
+  } catch (error) {
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.post("/security/log-login", async (req, res) => {
+  try {
+    const { adminId, ipAddress, device } = req.body;
+    if (!adminId) return res.status(400).json({ error: "معرف المدير مطلوب" });
+    await db.insert(auditLogs).values({
+      adminId,
+      action: 'login',
+      entityType: 'auth',
+      entityId: adminId,
+      ipAddress: ipAddress || req.ip || 'unknown',
+      oldData: JSON.stringify({ device: device || req.headers['user-agent'] || 'غير معروف' }),
+      newData: JSON.stringify({ status: 'success' }),
+    });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+router.post("/security/log-logout", async (req, res) => {
+  try {
+    const { userId, userName } = req.body;
+    if (!userId) return res.status(400).json({ error: "معرف المستخدم مطلوب" });
+    // التحقق من وجود المدير أولاً
+    const [admin] = await db.select({ id: adminUsers.id }).from(adminUsers).where(eq(adminUsers.id, userId)).limit(1);
+    if (!admin) return res.json({ success: true }); // تجاهل إذا لم يوجد
+    await db.insert(auditLogs).values({
+      adminId: userId,
+      action: 'logout',
+      entityType: 'auth',
+      entityId: userId,
+      ipAddress: req.ip || 'unknown',
+      oldData: JSON.stringify({ device: req.headers['user-agent'] || 'غير معروف', name: userName }),
+      newData: JSON.stringify({ status: 'success' }),
+    });
+    res.json({ success: true });
+  } catch (error) {
     res.status(500).json({ error: "خطأ في الخادم" });
   }
 });
