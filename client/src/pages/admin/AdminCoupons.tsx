@@ -35,9 +35,11 @@ export default function AdminCoupons() {
   const couponMutation = useMutation({
     mutationFn: async (data: any) => {
       if (editingCoupon) {
-        return apiRequest('PUT', `/api/admin/coupons/${editingCoupon.id}`, data);
+        const res = await apiRequest('PUT', `/api/admin/coupons/${editingCoupon.id}`, data);
+        return res.json();
       }
-      return apiRequest('POST', '/api/admin/coupons', data);
+      const res = await apiRequest('POST', '/api/admin/coupons', data);
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/coupons'] });
@@ -46,7 +48,10 @@ export default function AdminCoupons() {
       setFormData({});
       toast({ title: editingCoupon ? "تم تحديث الكوبون" : "تمت إضافة الكوبون بنجاح" });
     },
-    onError: () => toast({ title: "حدث خطأ في العملية", variant: "destructive" }),
+    onError: (error: any) => {
+      const msg = error?.message?.includes(':') ? error.message.split(':').slice(1).join(':').trim() : error?.message;
+      toast({ title: "حدث خطأ في العملية", description: msg || "تعذّر حفظ الكوبون، تحقق من البيانات", variant: "destructive" });
+    },
   });
 
   const deleteMutation = useMutation({

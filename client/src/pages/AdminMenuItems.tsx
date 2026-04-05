@@ -42,15 +42,15 @@ export default function AdminMenuItems() {
     isNew: true,
   });
 
-  // جلب متجر طمطوم فقط
+  // جلب متجر السريع ون فقط
   const { data: restaurantsData } = useQuery<{restaurants: Restaurant[]}>({
     queryKey: ['/api/admin/restaurants'],
   });
 
   const restaurants = restaurantsData?.restaurants || [];
   
-  // متجر طمطوم الافتراضي والوحيد
-  const tamtomStore = restaurants.find(r => r.name.includes('طمطوم')) || restaurants[0];
+  // متجر السريع ون الافتراضي والوحيد
+  const tamtomStore = restaurants.find(r => r.name.includes('السريع ون')) || restaurants[0];
 
   // جلب المنتجات الخاصة بالمتجر المحدد أو جميع المنتجات
   const { data: menuItems, isLoading } = useQuery<MenuItem[]>({
@@ -105,7 +105,7 @@ export default function AdminMenuItems() {
         category: data.category.trim(),
         price: price.toString(),
         originalPrice: originalPrice ? originalPrice.toString() : null,
-        brand: data.brand.trim() || 'طمطوم',
+        brand: data.brand.trim() || 'السريع ون',
         sizes: data.sizes.trim(),
         colors: data.colors.trim(),
         salesCount: parseInt(data.salesCount) || 0,
@@ -177,7 +177,7 @@ export default function AdminMenuItems() {
         category: data.category.trim(),
         price: price.toString(),
         originalPrice: originalPrice ? originalPrice.toString() : null,
-        brand: data.brand.trim() || 'طمطوم',
+        brand: data.brand.trim() || 'السريع ون',
         sizes: data.sizes.trim(),
         colors: data.colors.trim(),
         salesCount: parseInt(data.salesCount) || 0,
@@ -370,8 +370,8 @@ export default function AdminMenuItems() {
           <div className="flex items-center gap-3">
             <Package className="h-7 w-7 text-primary" />
             <div>
-              <h1 className="text-xl font-bold text-foreground">إدارة المنتجات - طمطوم</h1>
-              <p className="text-sm text-muted-foreground">إدارة منتجات متجر طمطوم</p>
+              <h1 className="text-xl font-bold text-foreground">إدارة المنتجات - السريع ون</h1>
+              <p className="text-sm text-muted-foreground">إدارة منتجات متجر السريع ون</p>
             </div>
           </div>
           <Button

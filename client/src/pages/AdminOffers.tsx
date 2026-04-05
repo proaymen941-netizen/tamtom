@@ -122,7 +122,7 @@ export default function AdminOffers() {
 
   const resetForm = () => {
     // Find Tamtoom Store and Offers Category to set as defaults
-    const tamtoomStore = restaurants.find(r => r.name.includes('طمطوم'));
+    const tamtoomStore = restaurants.find(r => r.name.includes('السريع ون'));
     const offersCategory = categories.find(c => c.name.includes('عرض') || c.name.includes('العروض'));
 
     setFormData({
@@ -143,7 +143,7 @@ export default function AdminOffers() {
   // Set defaults when data loads for the first time
   useState(() => {
     if (restaurants.length > 0 && categories.length > 0 && !editingOffer) {
-      const tamtoomStore = restaurants.find(r => r.name.includes('طمطوم'));
+      const tamtoomStore = restaurants.find(r => r.name.includes('السريع ون'));
       const offersCategory = categories.find(c => c.name.includes('عرض') || c.name.includes('العروض'));
       if (tamtoomStore || offersCategory) {
         setFormData(prev => ({

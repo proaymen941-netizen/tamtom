@@ -350,7 +350,7 @@ export default function AdminUiSettings() {
         <TabsContent value="customer" className="space-y-4">
           {/* Branding */}
           <SectionCard sectionKey="branding" title="الهوية البصرية والشعار" icon={ImageIcon} color="text-purple-600">
-            <SettingRow label="اسم التطبيق" settingKey="app_name" placeholder="طمطوم" description="الاسم الذي يظهر في الشريط العلوي" />
+            <SettingRow label="اسم التطبيق" settingKey="app_name" placeholder="السريع ون" description="الاسم الذي يظهر في الشريط العلوي" />
             <SettingRow label="إصدار التطبيق" settingKey="app_version" placeholder="1.0.0" description="رقم إصدار التطبيق الظاهر في القائمة الجانبية" />
             <SettingRow label="اللون الأساسي (hex)" settingKey="app_theme" placeholder="#16a34a" description="لون الموضوع الرئيسي" />
             <SettingRow label="شعار الشريط العلوي" settingKey="header_logo_url" type="image" description="الشعار الصغير في أعلى التطبيق" />
@@ -364,7 +364,7 @@ export default function AdminUiSettings() {
             <SettingRow label="إظهار شاشة الترحيب" settingKey="show_splash_screen" type="boolean" description="عرض شاشة الترحيب عند فتح التطبيق لأول مرة" />
             <SettingRow label="صورة شاشة الترحيب" settingKey="splash_image_url" type="image" description="الصورة الرئيسية في شاشة الترحيب" />
             <SettingRow label="صورة إضافية للترحيب" settingKey="splash_image_url_2" type="image" description="صورة ثانية تظهر في الشاشة (اختياري)" />
-            <SettingRow label="عنوان شاشة الترحيب" settingKey="splash_title" placeholder="طمطوم" description="النص الرئيسي في شاشة الترحيب" />
+            <SettingRow label="عنوان شاشة الترحيب" settingKey="splash_title" placeholder="السريع ون" description="النص الرئيسي في شاشة الترحيب" />
             <SettingRow label="نص الترحيب (وصف)" settingKey="splash_subtitle" type="textarea" placeholder="أفضل وجبات طازجة..." description="الوصف أسفل العنوان" />
             <SettingRow label="نص زر البداية" settingKey="splash_button_text" placeholder="ابدأ الآن" description="النص على زر البدء في شاشة الترحيب" />
           </SectionCard>
@@ -386,7 +386,7 @@ export default function AdminUiSettings() {
           <SectionCard sectionKey="sidebar" title="القائمة الجانبية والمشاركة" icon={Share2} color="text-blue-600">
             <SettingRow label="إظهار زر المشاركة في القائمة" settingKey="show_share_button" type="boolean" description="إظهار أو إخفاء زر مشاركة التطبيق" />
             <SettingRow label="إظهار زر التواصل في القائمة" settingKey="show_contact_button" type="boolean" description="إظهار أو إخفاء زر التواصل في القائمة الجانبية" />
-            <SettingRow label="نص المشاركة" settingKey="share_text" type="textarea" placeholder="جرب تطبيق طمطوم الآن!" description="النص الافتراضي عند مشاركة التطبيق" rows={2} />
+            <SettingRow label="نص المشاركة" settingKey="share_text" type="textarea" placeholder="جرب تطبيق السريع ون الآن!" description="النص الافتراضي عند مشاركة التطبيق" rows={2} />
             <SettingRow label="رابط المشاركة" settingKey="share_url" placeholder="https://tamtom.app" description="الرابط الذي يشاركه المستخدم" />
           </SectionCard>
 
@@ -666,7 +666,7 @@ export default function AdminUiSettings() {
             <SettingRow 
               label="عنوان شاشة البداية"
               settingKey="splashTitle"
-              placeholder="طمطوم"
+              placeholder="السريع ون"
               description="النص الرئيسي في شاشة البداية"
             />
             <SettingRow 
