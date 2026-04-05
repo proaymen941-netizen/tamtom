@@ -11,24 +11,11 @@ import { UiSettingsProvider, useUiSettings } from "./context/UiSettingsContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import { LocationPermissionModal } from "./components/LocationPermissionModal";
 import Layout from "./components/Layout";
-import { AdminLayout } from "./components/admin/AdminLayout";
 import FloatingCartNotification from "./components/FloatingCartNotification";
 import { LoginPage } from "./pages/LoginPage";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import DriverLoginPage from "./pages/driver/DriverLoginPage";
 import AdminApp from "./pages/AdminApp";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminDeliveryFees from "./pages/admin/AdminDeliveryFees";
-import AdminUiSettings from "./pages/admin/AdminUiSettings";
-import AdvancedReports from "./pages/admin/AdvancedReports";
-import RestaurantReports from "./pages/admin/RestaurantReports";
-import AdminDriversAdvanced from "./pages/AdminDriversAdvanced";
-import AdminFinancialReports from "./pages/AdminFinancialReports";
-import AdminHRManagement from "./pages/AdminHRManagement";
-import AdminRestaurantsAdvanced from "./pages/AdminRestaurantsAdvanced";
-import AdminSecurity from "./pages/AdminSecurity";
-import RatingsManagement from "./pages/RatingsManagement";
-import WalletManagement from "./pages/WalletManagement";
 import DriverAppPage from "./pages/driver/DriverApp";
 import { useState } from "react";
 import Home from "./pages/Home";
@@ -92,28 +79,9 @@ function MainApp() {
     return <DriverLoginPage />;
   }
 
-  // Handle admin routes
+  // Handle admin routes - AdminApp handles its own AdminLayout internally
   if (currentLocation.startsWith('/admin')) {
-    return (
-      <AdminLayout>
-        <Switch>
-          <Route path="/admin" component={AdminApp} />
-          <Route path="/admin/dashboard" component={AdminDashboard} />
-          <Route path="/admin/delivery-fees" component={AdminDeliveryFees} />
-          <Route path="/admin/ui-settings" component={AdminUiSettings} />
-          <Route path="/admin/advanced-reports" component={AdvancedReports} />
-          <Route path="/admin/restaurant-reports" component={RestaurantReports} />
-          <Route path="/admin/drivers-advanced" component={AdminDriversAdvanced} />
-          <Route path="/admin/financial-reports" component={AdminFinancialReports} />
-          <Route path="/admin/hr-management" component={AdminHRManagement} />
-          <Route path="/admin/restaurants-advanced" component={AdminRestaurantsAdvanced} />
-          <Route path="/admin/security" component={AdminSecurity} />
-          <Route path="/admin/ratings" component={RatingsManagement} />
-          <Route path="/admin/wallet" component={WalletManagement} />
-          <Route path="/admin/:rest*" component={AdminApp} />
-        </Switch>
-      </AdminLayout>
-    );
+    return <AdminApp />;
   }
 
   // Handle driver routes
