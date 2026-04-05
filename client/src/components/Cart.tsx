@@ -31,12 +31,6 @@ export function Cart({ isOpen, onClose }: CartProps) {
     paymentMethod: 'cash'
   });
 
-  const [couponCode, setCouponCode] = useState('');
-  const [couponDiscount, setCouponDiscount] = useState(0);
-  const [isValidCoupon, setIsValidCoupon] = useState(false);
-  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
-
-
   const paymentMethods = [
     { id: 'cash', name: 'نقداً عند الاستلام', icon: '💵' },
     { id: 'card', name: 'بطاقة دفع', icon: '💳' },
@@ -195,9 +189,7 @@ export function Cart({ isOpen, onClose }: CartProps) {
         items: JSON.stringify(state.items),
         subtotal: state.subtotal,
         deliveryFee: deliveryFee,
-        totalAmount: (state.subtotal + deliveryFee - couponDiscount),
-        couponCode: isValidCoupon ? couponCode : undefined,
-
+        totalAmount: state.subtotal + deliveryFee,
         restaurantId: state.restaurantId
       };
 
@@ -478,60 +470,9 @@ export function Cart({ isOpen, onClose }: CartProps) {
                     )}
                   </div>
 
-  {/* كوبون خصم */}
-  <div>
-    <h3 className="font-medium mb-2 text-sm">رمز الكوبون (اختياري)</h3>
-    <div className="flex gap-2">
-      <input
-        type="text"
-        placeholder="أدخل كود الخصم"
-        value={couponCode}
-        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-        className="flex-1 p-3 border rounded-lg"
-      />
-      <Button
-        onClick={async () => {
-          if (!couponCode) return;
-          setIsValidatingCoupon(true);
-          try {
-            const response = await fetch('/api/customer/validate-coupon', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ code: couponCode, subtotal: state.subtotal }),
-            });
-            const data = await response.json();
-            if (data.valid) {
-              setCouponDiscount(parseFloat(data.discount));
-              setIsValidCoupon(true);
-              toast({ title: "كوبون صالح!", description: `خصم ${data.discount} ر.س` });
-            } else {
-              setCouponDiscount(0);
-              setIsValidCoupon(false);
-              toast({ title: "الكوبون غير صالح", variant: "destructive" });
-            }
-          } catch {
-            toast({ title: "خطأ", description: "فشل في التحقق من الكوبون", variant: "destructive" });
-          }
-          setIsValidatingCoupon(false);
-        }}
-        size="sm"
-        className="px-8 font-bold"
-        disabled={isValidatingCoupon}
-      >
-        {isValidatingCoupon ? <Loader2 className="animate-spin h-4 w-4" /> : 'تطبيق'}
-      </Button>
-    </div>
-    {couponDiscount > 0 && (
-      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm font-bold text-green-800">
-        خصم {formatCurrency(couponDiscount)} ✅
-      </div>
-    )}
-  </div>
-
-  {/* طرق الدفع */}
-  <div>
-    <h3 className="font-medium mb-2 text-sm">طريقة الدفع *</h3>
-
+                  {/* طرق الدفع */}
+                  <div>
+                    <h3 className="font-medium mb-2 text-sm">طريقة الدفع *</h3>
                     <div className="grid grid-cols-2 gap-2">
                       {paymentMethods.map((method) => (
                         <button
