@@ -609,7 +609,7 @@ export default function AdminUiSettings() {
               </CardTitle>
             </CardHeader>
             <CardContent className="divide-y divide-gray-100">
-              <SettingRow label="الحد الأدنى للطلب (ر.س)" settingKey="minimum_order_default" placeholder="20" description="أقل قيمة للطلب يمكن قبولها" />
+              <SettingRow label="الحد الأدنى للطلب (ريال)" settingKey="minimum_order_default" placeholder="20" description="أقل قيمة للطلب يمكن قبولها" />
               <SettingRow label="وقت الفتح" settingKey="opening_time" placeholder="08:00" description="وقت فتح المتجر يومياً" />
               <SettingRow label="وقت الإغلاق" settingKey="closing_time" placeholder="23:00" description="وقت إغلاق المتجر يومياً" />
             </CardContent>

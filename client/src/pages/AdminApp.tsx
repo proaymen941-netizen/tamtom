@@ -22,6 +22,7 @@ import AdminPaymentMethods from "./admin/AdminPaymentMethods";
 import AdvancedReports from "./admin/AdvancedReports";
 import AdminDetailedReports from "./admin/AdminDetailedReports";
 import RestaurantReports from "./admin/RestaurantReports";
+import AdminRestaurantAccounts from "./admin/AdminRestaurantAccounts";
 import RatingsManagement from "./RatingsManagement";
 import WalletManagement from "./WalletManagement";
 import NotFound from "./not-found";
@@ -59,6 +60,7 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
         <Route path="/admin/advanced-reports" component={AdvancedReports} />
         <Route path="/admin/restaurant-reports" component={RestaurantReports} />
         <Route path="/admin/restaurants-advanced" component={AdminRestaurantsAdvanced} />
+        <Route path="/admin/restaurant-accounts" component={AdminRestaurantAccounts} />
         <Route component={NotFound} />
       </Switch>
     </AdminLayout>

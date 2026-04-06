@@ -248,10 +248,10 @@ export default function AdminCoupons() {
                     <TableCell>
                       <span className="flex items-center gap-1 font-semibold">
                         {coupon.type === 'percentage' ? <Percent className="h-3.5 w-3.5 text-blue-500" /> : <DollarSign className="h-3.5 w-3.5 text-green-500" />}
-                        {coupon.value}{coupon.type === 'percentage' ? '%' : ' ر.س'}
+                        {coupon.value}{coupon.type === 'percentage' ? '%' : ' ريال'}
                         {coupon.maxDiscount && <span className="text-xs text-muted-foreground">(حد أقصى {coupon.maxDiscount})</span>}
                       </span>
-                      {coupon.minOrderValue > 0 && <div className="text-xs text-muted-foreground">حد أدنى: {coupon.minOrderValue} ر.س</div>}
+                      {coupon.minOrderValue > 0 && <div className="text-xs text-muted-foreground">حد أدنى: {coupon.minOrderValue} ريال</div>}
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">{coupon.usageCount || 0} {coupon.usageLimit ? `/ ${coupon.usageLimit}` : '∞'}</div>
@@ -340,7 +340,7 @@ export default function AdminCoupons() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="percentage">نسبة مئوية (%)</SelectItem>
-                    <SelectItem value="fixed">مبلغ ثابت (ر.س)</SelectItem>
+                    <SelectItem value="fixed">مبلغ ثابت (ريال)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -358,7 +358,7 @@ export default function AdminCoupons() {
               </div>
               {formData.type === 'percentage' && (
                 <div className="space-y-2">
-                  <Label>الحد الأقصى للخصم (ر.س)</Label>
+                  <Label>الحد الأقصى للخصم (ريال)</Label>
                   <Input
                     type="number"
                     value={formData.maxDiscount || ''}
@@ -372,7 +372,7 @@ export default function AdminCoupons() {
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>الحد الأدنى للطلب (ر.س)</Label>
+                <Label>الحد الأدنى للطلب (ريال)</Label>
                 <Input
                   type="number"
                   value={formData.minOrderValue || '0'}

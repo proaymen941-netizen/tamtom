@@ -231,7 +231,7 @@ export default function HomePage() {
                     {restaurant.deliveryFee !== undefined && (
                       <span className="flex items-center gap-0.5">
                         <Tag className="h-3 w-3" />
-                        {restaurant.deliveryFee} ر.س
+                        {restaurant.deliveryFee} ريال
                       </span>
                     )}
                   </div>
