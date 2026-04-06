@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, Package, Save, X, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, Save, X, Search, Store } from 'lucide-react';
 import ImageUpload from '@/components/ImageUpload';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import type { MenuItem, Restaurant } from '@shared/schema';
+import type { MenuItem, Restaurant, Category } from '@shared/schema';
 
 export default function AdminMenuItems() {
   const { toast } = useToast();
@@ -22,6 +22,7 @@ export default function AdminMenuItems() {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRestaurantFilter, setSelectedRestaurantFilter] = useState<string>('all');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -32,7 +33,7 @@ export default function AdminMenuItems() {
     category: '',
     isAvailable: true,
     isSpecialOffer: false,
-    restaurantId: 'auto',
+    restaurantId: '',
     brand: '',
     sizes: '',
     colors: '',
@@ -42,17 +43,14 @@ export default function AdminMenuItems() {
     isNew: true,
   });
 
-  // جلب متجر السريع ون فقط
+  // جلب جميع المتاجر
   const { data: restaurantsData } = useQuery<{restaurants: Restaurant[]}>({
     queryKey: ['/api/admin/restaurants'],
   });
 
   const restaurants = restaurantsData?.restaurants || [];
-  
-  // متجر السريع ون الافتراضي والوحيد
-  const tamtomStore = restaurants.find(r => r.name.includes('السريع ون')) || restaurants[0];
 
-  // جلب المنتجات الخاصة بالمتجر المحدد أو جميع المنتجات
+  // جلب جميع المنتجات
   const { data: menuItems, isLoading } = useQuery<MenuItem[]>({
     queryKey: ['/api/admin/menu-items'],
     queryFn: async () => {
@@ -105,14 +103,14 @@ export default function AdminMenuItems() {
         category: data.category.trim(),
         price: price.toString(),
         originalPrice: originalPrice ? originalPrice.toString() : null,
-        brand: data.brand.trim() || 'السريع ون',
+        brand: data.brand.trim() || '',
         sizes: data.sizes.trim(),
         colors: data.colors.trim(),
         salesCount: parseInt(data.salesCount) || 0,
         rating: parseFloat(data.rating) || 5,
         isFeatured: data.isFeatured,
         isNew: data.isNew,
-        restaurantId: tamtomStore?.id || data.restaurantId,
+        restaurantId: data.restaurantId,
       };
       
       const response = await apiRequest('POST', '/api/admin/menu-items', submitData);
@@ -177,14 +175,14 @@ export default function AdminMenuItems() {
         category: data.category.trim(),
         price: price.toString(),
         originalPrice: originalPrice ? originalPrice.toString() : null,
-        brand: data.brand.trim() || 'السريع ون',
+        brand: data.brand.trim() || '',
         sizes: data.sizes.trim(),
         colors: data.colors.trim(),
         salesCount: parseInt(data.salesCount) || 0,
         rating: parseFloat(data.rating) || 5,
         isFeatured: data.isFeatured,
         isNew: data.isNew,
-        restaurantId: tamtomStore?.id || data.restaurantId,
+        restaurantId: data.restaurantId,
       };
       
       const response = await apiRequest('PUT', `/api/admin/menu-items/${id}`, submitData);
@@ -233,7 +231,7 @@ export default function AdminMenuItems() {
       category: '',
       isAvailable: true,
       isSpecialOffer: false,
-      restaurantId: tamtomStore?.id || '',
+      restaurantId: restaurants[0]?.id || '',
       brand: '',
       sizes: '',
       colors: '',
@@ -256,7 +254,7 @@ export default function AdminMenuItems() {
       category: item.category,
       isAvailable: item.isAvailable,
       isSpecialOffer: item.isSpecialOffer,
-      restaurantId: item.restaurantId || tamtomStore?.id || '',
+      restaurantId: item.restaurantId || restaurants[0]?.id || '',
       brand: item.brand || '',
       sizes: item.sizes || '',
       colors: item.colors || '',
@@ -306,7 +304,7 @@ export default function AdminMenuItems() {
 
     const dataWithRestaurant = { 
       ...formData, 
-      restaurantId: tamtomStore?.id || '',
+      restaurantId: formData.restaurantId || restaurants[0]?.id || '',
       originalPrice: formData.originalPrice.trim() || ''
     };
 
@@ -331,7 +329,7 @@ export default function AdminMenuItems() {
         isSpecialOffer: field === 'isSpecialOffer' ? !item[field] : item.isSpecialOffer,
         isFeatured: field === 'isFeatured' ? !item[field] : (item.isFeatured || false),
         isNew: field === 'isNew' ? !item[field] : (item.isNew ?? true),
-        restaurantId: item.restaurantId || tamtomStore?.id || '',
+        restaurantId: item.restaurantId || '',
         brand: item.brand || '',
         sizes: item.sizes || '',
         colors: item.colors || '',
@@ -356,12 +354,20 @@ export default function AdminMenuItems() {
     return isNaN(num) ? 0 : num;
   };
 
-  // فلترة الوجبات حسب البحث
-  const filteredMenuItems = menuItems?.filter((item) =>
-    item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // فلترة المنتجات حسب البحث والمتجر
+  const filteredMenuItems = menuItems?.filter((item) => {
+    const matchesSearch = !searchTerm || 
+      item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.category?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRestaurant = selectedRestaurantFilter === 'all' || item.restaurantId === selectedRestaurantFilter;
+    return matchesSearch && matchesRestaurant;
+  });
+
+  const getRestaurantName = (id: string) => {
+    return restaurants.find(r => r.id === id)?.name || '';
+  };
+
   return (
     <div className="flex flex-col min-h-full">
       {/* Sticky Toolbar */}
@@ -370,8 +376,8 @@ export default function AdminMenuItems() {
           <div className="flex items-center gap-3">
             <Package className="h-7 w-7 text-primary" />
             <div>
-              <h1 className="text-xl font-bold text-foreground">إدارة المنتجات - السريع ون</h1>
-              <p className="text-sm text-muted-foreground">إدارة منتجات متجر السريع ون</p>
+              <h1 className="text-xl font-bold text-foreground">إدارة المنتجات</h1>
+              <p className="text-sm text-muted-foreground">إدارة منتجات جميع المتاجر والمطاعم</p>
             </div>
           </div>
           <Button
@@ -395,6 +401,21 @@ export default function AdminMenuItems() {
               </DialogHeader>
               
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="restaurantId">المتجر / المطعم *</Label>
+                  <Select value={formData.restaurantId} onValueChange={(value) => setFormData(prev => ({ ...prev, restaurantId: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر المتجر أو المطعم" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {restaurants.map((restaurant) => (
+                        <SelectItem key={restaurant.id} value={restaurant.id}>
+                          {restaurant.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="grid grid-cols-1 gap-4">
                   <div>
                     <Label htmlFor="name">اسم المنتج</Label>
@@ -563,11 +584,11 @@ export default function AdminMenuItems() {
             </DialogContent>
           </Dialog>
 
-      {/* شريط البحث */}
-      {true && (
-        <Card>
-          <CardContent className="p-4">
-            <div className="relative">
+      {/* شريط البحث والفلتر */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="البحث في المنتجات..."
@@ -577,9 +598,24 @@ export default function AdminMenuItems() {
                 data-testid="input-search-menu-items"
               />
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <Select value={selectedRestaurantFilter} onValueChange={setSelectedRestaurantFilter}>
+              <SelectTrigger className="w-[200px]">
+                <Store className="h-4 w-4 ml-2" />
+                <SelectValue placeholder="كل المتاجر" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل المتاجر</SelectItem>
+                {restaurants.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            إجمالي المنتجات: {filteredMenuItems?.length || 0} منتج
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Restaurant Selection Message - تم التعديل لعرض المنتجات دائماً */}
       {false && (
@@ -622,6 +658,12 @@ export default function AdminMenuItems() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
+                      {item.restaurantId && getRestaurantName(item.restaurantId) && (
+                        <div className="flex items-center gap-1 mb-1">
+                          <Store className="h-3 w-3 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground">{getRestaurantName(item.restaurantId)}</p>
+                        </div>
+                      )}
                       {item.brand && (
                         <p className="text-xs font-bold text-primary mb-1">{item.brand}</p>
                       )}
