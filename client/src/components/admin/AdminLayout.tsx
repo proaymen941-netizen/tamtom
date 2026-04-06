@@ -26,6 +26,11 @@ import {
   Wallet,
   Ticket,
   X,
+  Store,
+  FileBarChart,
+  Receipt,
+  TrendingUp,
+  UserCog,
 } from 'lucide-react';
 import type { UiSettings } from '@shared/schema';
 
@@ -94,8 +99,17 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       ]
     },
     {
+      key: 'restaurants',
+      label: 'المتاجر والمطاعم',
+      items: [
+        { icon: Store, label: 'إدارة المتاجر', path: '/admin/restaurants', permission: 'manage_menu' },
+        { icon: Receipt, label: 'حسابات المتاجر', path: '/admin/restaurant-accounts', permission: 'manage_menu' },
+        { icon: FileBarChart, label: 'تقارير المتاجر', path: '/admin/restaurant-reports', permission: 'view_reports' },
+      ]
+    },
+    {
       key: 'store',
-      label: 'المتجر',
+      label: 'المنتجات والعروض',
       items: [
         { icon: Tag, label: 'التصنيفات', path: '/admin/categories', permission: 'manage_categories' },
         { icon: Package, label: 'المنتجات', path: '/admin/menu-items', permission: 'manage_menu' },
@@ -108,26 +122,26 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       key: 'drivers',
       label: 'السائقون',
       items: [
-        { icon: Truck, label: 'السائقين', path: '/admin/drivers', permission: 'manage_drivers' },
+        { icon: Truck, label: 'إدارة السائقين', path: '/admin/drivers', permission: 'manage_drivers' },
         { icon: DollarSign, label: 'رسوم التوصيل', path: '/admin/delivery-fees', permission: 'manage_drivers' },
         { icon: Wallet, label: 'محافظ السائقين', path: '/admin/wallet', permission: 'manage_drivers' },
       ]
     },
     {
       key: 'reports',
-      label: 'التقارير',
+      label: 'التقارير والمالية',
       items: [
-        { icon: DollarSign, label: 'التقارير المالية', path: '/admin/financial-reports', permission: 'view_reports' },
+        { icon: TrendingUp, label: 'الإيرادات والتوزيع', path: '/admin/financial-reports', permission: 'view_reports' },
         { icon: BarChart3, label: 'التقارير التفصيلية', path: '/admin/detailed-reports', permission: 'view_reports' },
         { icon: Star, label: 'التقييمات', path: '/admin/ratings', permission: 'view_reports' },
       ]
     },
     {
       key: 'management',
-      label: 'الإدارة',
+      label: 'الإدارة والموارد',
       items: [
-        { icon: Users, label: 'الموارد البشرية', path: '/admin/hr-management', permission: 'manage_customers' },
-        { icon: Users, label: 'المستخدمين', path: '/admin/users', permission: 'manage_customers' },
+        { icon: UserCog, label: 'الموارد البشرية', path: '/admin/hr-management', permission: 'manage_customers' },
+        { icon: Users, label: 'العملاء', path: '/admin/users', permission: 'manage_customers' },
         { icon: Shield, label: 'الأمن والخصوصية', path: '/admin/security', permission: 'manage_settings' },
       ]
     },
@@ -311,7 +325,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 <div className="w-2 h-2 bg-primary rounded-full mt-1.5 flex-shrink-0"></div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900">طلب جديد #{order.orderNumber || order.id?.slice(0, 8)}</p>
-                  <p className="text-xs text-gray-500 truncate">{order.customerName || 'عميل'} — {order.totalAmount} ر.س</p>
+                  <p className="text-xs text-gray-500 truncate">{order.customerName || 'عميل'} — {order.totalAmount} ريال</p>
                   <p className="text-xs text-red-500 mt-0.5">بانتظار تعيين سائق</p>
                 </div>
               </div>
