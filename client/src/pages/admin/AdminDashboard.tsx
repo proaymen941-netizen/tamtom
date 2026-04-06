@@ -34,7 +34,7 @@ export default function AdminDashboard() {
   const { data: dashboardData, isLoading } = useQuery({
     queryKey: ['/api/admin/dashboard'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/admin/dashboard', null, user?.token);
+      const response = await apiRequest('GET', '/api/admin/dashboard');
       return response.json();
     },
     refetchInterval: 30000, // تحديث كل 30 ثانية

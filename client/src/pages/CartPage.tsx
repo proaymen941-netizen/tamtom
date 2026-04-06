@@ -194,6 +194,7 @@ export default function CartPage() {
       subtotal: subtotal.toString(),
       deliveryFee: deliveryFee.toString(),
       total: finalTotal.toString(),
+      totalAmount: finalTotal.toString(),
       restaurantId: items[0]?.restaurantId || undefined,
       customerLocationLat: userLocation.position?.coords.latitude.toString(),
       customerLocationLng: userLocation.position?.coords.longitude.toString(),

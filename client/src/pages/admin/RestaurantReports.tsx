@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, TrendingUp, DollarSign, ShoppingBag, Percent } from "lucide-react";
 
 export default function RestaurantReports() {
-  const { data: reports, isLoading } = useQuery({
+  const { data: reports, isLoading } = useQuery<any[]>({
     queryKey: ["/api/admin/reports/restaurants"],
   });
 
