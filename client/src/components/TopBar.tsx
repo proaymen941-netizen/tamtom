@@ -155,15 +155,9 @@ export const TopBar: React.FC = () => {
             className="flex-1 flex flex-col items-center cursor-pointer"
             onClick={() => setLocation('/')}
           >
-            {settingsLoading ? (
-              <div className="h-6 w-32 bg-white/20 animate-pulse rounded" />
-            ) : logoUrl ? (
-              <img src={logoUrl} alt={appName} className="h-10 w-auto object-contain" />
-            ) : (
-              <span className="text-white font-black text-lg leading-tight">{appName}</span>
-            )}
-            <div className="flex items-center gap-1 text-white/90 text-xs mt-0.5">
-              <span>{getSetting('address_text', 'أختار العنوان')}</span>
+            <span className="text-white font-black text-lg leading-tight">السريع ون</span>
+            <div className="flex items-center gap-1 text-white/90 text-[10px] mt-0.5">
+              <span>دوماً في خدمتك</span>
               <ChevronDown className="h-3 w-3" />
             </div>
           </div>
