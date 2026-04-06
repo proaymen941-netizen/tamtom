@@ -324,6 +324,29 @@ export class DatabaseStorage {
   }
 
   // Menu Items
+  async getRestaurantSections(restaurantId: string): Promise<RestaurantSection[]> {
+    return await this.db
+      .select()
+      .from(restaurantSections)
+      .where(eq(restaurantSections.restaurantId, restaurantId))
+      .orderBy(restaurantSections.sortOrder);
+  }
+
+  async createRestaurantSection(section: InsertRestaurantSection): Promise<RestaurantSection> {
+    const [newSection] = await this.db.insert(restaurantSections).values(section).returning();
+    return newSection;
+  }
+
+  async updateRestaurantSection(id: string, section: Partial<InsertRestaurantSection>): Promise<RestaurantSection | undefined> {
+    const [updated] = await this.db.update(restaurantSections).set(section).where(eq(restaurantSections.id, id)).returning();
+    return updated;
+  }
+
+  async deleteRestaurantSection(id: string): Promise<boolean> {
+    const result = await this.db.delete(restaurantSections).where(eq(restaurantSections.id, id)).returning();
+    return result.length > 0;
+  }
+
   async getMenuItems(restaurantId: string): Promise<MenuItem[]> {
     if (restaurantId === 'all') {
       return await this.db.select().from(menuItems);
