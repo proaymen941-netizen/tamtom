@@ -28,6 +28,8 @@ Primary Color: Red-Orange — hsl(13 95% 52%) / #ec3714
 - **Database**: PostgreSQL via Replit built-in (DATABASE_URL env var)
 - **CSS Fix**: Root `tailwind.config.js` content paths fixed to point at `./client/src/**`. A `client/postcss.config.js` was added so Vite middleware mode picks up PostCSS/Tailwind correctly.
 - **HMR Warning**: WebSocket HMR connection shows a warning in the browser console due to Replit's proxy — this is normal and does not affect app functionality.
+- **PWA Files**: `client/public/manifest.json` and `client/public/sw.js` — service worker registration is in `client/index.html`
+- **Clean-up**: Removed root-level duplicate files (App.tsx, main.tsx, index.html, index.css, vite-env.d.ts)
 
 ## Architecture
 
