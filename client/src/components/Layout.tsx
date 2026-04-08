@@ -104,7 +104,7 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="bg-background min-h-screen flex flex-col pb-16 md:pb-0" dir={dir}>
       <TopBar />
-      {location !== '/' && !location.startsWith('/restaurant/') && <Navbar />}
+      {location !== '/' && <Navbar />}
 
       {/* Sidebar Sheet */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>

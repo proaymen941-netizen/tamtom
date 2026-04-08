@@ -48,11 +48,15 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         
-        {logoUrl && (
-          <div className="absolute bottom-8 left-0 right-0 flex justify-center">
+        <div className="absolute bottom-8 left-0 right-0 flex justify-center">
+          {logoUrl ? (
             <img src={logoUrl} alt="Logo" className="h-20 md:h-28 object-contain drop-shadow-2xl" />
-          </div>
-        )}
+          ) : (
+            <div className="text-4xl md:text-6xl flex items-center font-black tracking-tighter select-none bg-white/10 backdrop-blur-md px-8 py-3 rounded-3xl border border-white/20 text-white">
+              {appName}
+            </div>
+          )}
+        </div>
       </div>
       
       {/* Content Section */}
