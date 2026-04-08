@@ -81,18 +81,6 @@ router.get("/restaurants/:id/menu", async (req, res) => {
   }
 });
 
-// جلب أقسام المطعم
-router.get("/restaurants/:id/sections", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const sections = await storage.getRestaurantSections(id);
-    res.json(sections);
-  } catch (error) {
-    console.error("خطأ في جلب أقسام المطعم:", error);
-    res.status(500).json({ message: "Failed to fetch restaurant sections" });
-  }
-});
-
 // جلب العروض الخاصة
 router.get("/special-offers", async (req, res) => {
   try {

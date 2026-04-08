@@ -493,7 +493,7 @@ export function registerAdvancedRoutes(app: express.Express) {
     try {
       const { userId, entityType, action, startDate, endDate } = req.query;
 
-      const logs = await dbStorage.getAuditLogs({
+      const logs = await advancedDb.getAuditLogs({
         userId: userId as string,
         entityType: entityType as string,
         action: action as string,

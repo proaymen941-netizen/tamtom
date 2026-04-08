@@ -166,8 +166,8 @@ export class DatabaseStorage {
 
   async deleteAdminUser(id: string): Promise<boolean> {
     try {
-      const [deleted] = await this.db.delete(adminUsers).where(eq(adminUsers.id, id)).returning({ id: adminUsers.id });
-      return !!deleted;
+      const result = await this.db.delete(adminUsers).where(eq(adminUsers.id, id));
+      return result.rowCount > 0;
     } catch (error) {
       console.error('Error deleting admin user:', error);
       throw error;
@@ -222,8 +222,8 @@ export class DatabaseStorage {
       // Delete notifications
       await this.db.delete(notifications).where(and(eq(notifications.recipientId, id), eq(notifications.recipientType, 'customer')));
 
-      const [deleted] = await this.db.delete(users).where(eq(users.id, id)).returning({ id: users.id });
-      return !!deleted;
+      const result = await this.db.delete(users).where(eq(users.id, id));
+      return result.rowCount > 0;
     } catch (error) {
       console.error('Error deleting user:', error);
       throw error;
@@ -258,8 +258,8 @@ export class DatabaseStorage {
       // Delete special offers linked to this category
       await this.db.delete(specialOffers).where(eq(specialOffers.categoryId, id));
       
-      const [deleted] = await this.db.delete(categories).where(eq(categories.id, id)).returning({ id: categories.id });
-      return !!deleted;
+      const result = await this.db.delete(categories).where(eq(categories.id, id));
+      return result.rowCount > 0;
     } catch (error) {
       console.error('Error deleting category:', error);
       throw error;
@@ -315,8 +315,8 @@ export class DatabaseStorage {
       // Delete from deliveryFeeSettings
       await this.db.delete(deliveryFeeSettings).where(eq(deliveryFeeSettings.restaurantId, id));
 
-      const [deleted] = await this.db.delete(restaurants).where(eq(restaurants.id, id)).returning({ id: restaurants.id });
-      return !!deleted;
+      const result = await this.db.delete(restaurants).where(eq(restaurants.id, id));
+      return result.rowCount > 0;
     } catch (error) {
       console.error('Error deleting restaurant:', error);
       throw error;
@@ -324,29 +324,6 @@ export class DatabaseStorage {
   }
 
   // Menu Items
-  async getRestaurantSections(restaurantId: string): Promise<RestaurantSection[]> {
-    return await this.db
-      .select()
-      .from(restaurantSections)
-      .where(eq(restaurantSections.restaurantId, restaurantId))
-      .orderBy(restaurantSections.sortOrder);
-  }
-
-  async createRestaurantSection(section: InsertRestaurantSection): Promise<RestaurantSection> {
-    const [newSection] = await this.db.insert(restaurantSections).values(section).returning();
-    return newSection;
-  }
-
-  async updateRestaurantSection(id: string, section: Partial<InsertRestaurantSection>): Promise<RestaurantSection | undefined> {
-    const [updated] = await this.db.update(restaurantSections).set(section).where(eq(restaurantSections.id, id)).returning();
-    return updated;
-  }
-
-  async deleteRestaurantSection(id: string): Promise<boolean> {
-    const result = await this.db.delete(restaurantSections).where(eq(restaurantSections.id, id)).returning();
-    return result.length > 0;
-  }
-
   async getMenuItems(restaurantId: string): Promise<MenuItem[]> {
     if (restaurantId === 'all') {
       return await this.db.select().from(menuItems);
@@ -382,8 +359,8 @@ export class DatabaseStorage {
       // Delete special offers
       await this.db.delete(specialOffers).where(eq(specialOffers.menuItemId, id));
       
-      const [deleted] = await this.db.delete(menuItems).where(eq(menuItems.id, id)).returning({ id: menuItems.id });
-      return !!deleted;
+      const result = await this.db.delete(menuItems).where(eq(menuItems.id, id));
+      return result.rowCount > 0;
     } catch (error) {
       console.error('Error deleting menu item:', error);
       throw error;
@@ -687,8 +664,8 @@ export class DatabaseStorage {
       await this.db.delete(driverWallets).where(eq(driverWallets.driverId, id));
       await this.db.delete(driverEarningsTable).where(eq(driverEarningsTable.driverId, id));
       
-      const [deleted] = await this.db.delete(drivers).where(eq(drivers.id, id)).returning({ id: drivers.id });
-      return !!deleted;
+      const result = await this.db.delete(drivers).where(eq(drivers.id, id));
+      return result.rowCount > 0;
     } catch (error) {
       console.error('Error deleting driver:', error);
       throw error;
@@ -717,8 +694,8 @@ export class DatabaseStorage {
   }
 
   async deleteSpecialOffer(id: string): Promise<boolean> {
-    const [deleted] = await this.db.delete(specialOffers).where(eq(specialOffers.id, id)).returning({ id: specialOffers.id });
-    return !!deleted;
+    const result = await this.db.delete(specialOffers).where(eq(specialOffers.id, id));
+    return result.rowCount > 0;
   }
 
   // Search methods - removed duplicate methods, keeping enhanced versions below
@@ -778,8 +755,8 @@ export class DatabaseStorage {
   }
 
   async deleteUiSetting(key: string): Promise<boolean> {
-    const [deleted] = await this.db.delete(systemSettings).where(eq(systemSettings.key, key)).returning({ key: systemSettings.key });
-    return !!deleted;
+    const result = await this.db.delete(systemSettings).where(eq(systemSettings.key, key));
+    return result.rowCount > 0;
   }
 
   // Notifications
@@ -1317,13 +1294,13 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   }
 
   async removeFromCart(cartId: string): Promise<boolean> {
-    const [deleted] = await this.db.delete(cart).where(eq(cart.id, cartId)).returning({ id: cart.id });
-    return !!deleted;
+    const result = await this.db.delete(cart).where(eq(cart.id, cartId));
+    return result.rowCount > 0;
   }
 
   async clearCart(userId: string): Promise<boolean> {
-    const result = await this.db.delete(cart).where(eq(cart.userId, userId)).returning({ id: cart.id });
-    return result.length > 0;
+    const result = await this.db.delete(cart).where(eq(cart.userId, userId));
+    return result.rowCount > 0;
   }
 
   // Favorites Functions - وظائف المفضلة
@@ -1386,9 +1363,9 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
     
     if (conditions.length === 1) return false;
 
-    const deleted = await this.db.delete(favorites)
-      .where(and(...conditions)).returning({ id: favorites.id });
-    return deleted.length > 0;
+    const result = await this.db.delete(favorites)
+      .where(and(...conditions));
+    return result.rowCount > 0;
   }
 
   async isRestaurantFavorite(userId: string, restaurantId: string): Promise<boolean> {
@@ -1483,14 +1460,14 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   }
 
   async deleteUserAddress(addressId: string, userId: string): Promise<boolean> {
-    const [deleted] = await this.db.delete(userAddresses)
+    const result = await this.db.delete(userAddresses)
       .where(
         and(
           eq(userAddresses.id, addressId),
           eq(userAddresses.userId, userId)
         )
-      ).returning({ id: userAddresses.id });
-    return !!deleted;
+      );
+    return result.rowCount > 0;
   }
 
   // Ratings
@@ -1587,10 +1564,10 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   }
 
   async deleteDeliveryZone(id: string): Promise<boolean> {
-    const [updated] = await this.db.update(deliveryZones)
+    const result = await this.db.update(deliveryZones)
       .set({ isActive: false })
-      .where(eq(deliveryZones.id, id)).returning({ id: deliveryZones.id });
-    return !!updated;
+      .where(eq(deliveryZones.id, id));
+    return result.rowCount > 0;
   }
 
   // Financial Reports
@@ -1637,8 +1614,8 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   }
 
   async deleteEmployee(id: string): Promise<boolean> {
-    const [deleted] = await this.db.delete(employees).where(eq(employees.id, id)).returning({ id: employees.id });
-    return !!deleted;
+    const result = await this.db.delete(employees).where(eq(employees.id, id));
+    return result.rowCount > 0;
   }
 
   async getAttendance(employeeId?: string, date?: Date): Promise<Attendance[]> {
@@ -1937,8 +1914,8 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   }
 
   async deleteGeoZone(id: string): Promise<boolean> {
-    const [deleted] = await this.db.delete(geoZones).where(eq(geoZones.id, id)).returning({ id: geoZones.id });
-    return !!deleted;
+    const result = await this.db.delete(geoZones).where(eq(geoZones.id, id));
+    return result.rowCount > 0;
   }
 
   // Delivery Rules methods
@@ -1962,8 +1939,8 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   }
 
   async deleteDeliveryRule(id: string): Promise<boolean> {
-    const [deleted] = await this.db.delete(deliveryRules).where(eq(deliveryRules.id, id)).returning({ id: deliveryRules.id });
-    return !!deleted;
+    const result = await this.db.delete(deliveryRules).where(eq(deliveryRules.id, id));
+    return result.rowCount > 0;
   }
 
   // Delivery Discounts methods
@@ -1982,8 +1959,8 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   }
 
   async deleteDeliveryDiscount(id: string): Promise<boolean> {
-    const [deleted] = await this.db.delete(deliveryDiscounts).where(eq(deliveryDiscounts.id, id)).returning({ id: deliveryDiscounts.id });
-    return !!deleted;
+    const result = await this.db.delete(deliveryDiscounts).where(eq(deliveryDiscounts.id, id));
+    return result.rowCount > 0;
   }
 
   // طلبات السحب (النظام المتقدم)
@@ -2071,8 +2048,8 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   }
 
   async deletePaymentGateway(id: string): Promise<boolean> {
-    const [deleted] = await this.db.delete(paymentGateways).where(eq(paymentGateways.id, id)).returning({ id: paymentGateways.id });
-    return !!deleted;
+    const result = await this.db.delete(paymentGateways).where(eq(paymentGateways.id, id));
+    return result.rowCount > 0;
   }
 
   // Payment Methods (Saudi payment methods)
@@ -2101,8 +2078,8 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
 
   async deletePaymentMethod(id: string): Promise<boolean> {
     await this.db.delete(paymentMethodDocuments).where(eq(paymentMethodDocuments.paymentMethodId, id));
-    const [deleted] = await this.db.delete(paymentMethods).where(eq(paymentMethods.id, id)).returning({ id: paymentMethods.id });
-    return !!deleted;
+    const result = await this.db.delete(paymentMethods).where(eq(paymentMethods.id, id));
+    return result.rowCount > 0;
   }
 
   async getPaymentMethodDocuments(paymentMethodId: string): Promise<PaymentMethodDocument[]> {
@@ -2120,8 +2097,8 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   }
 
   async deletePaymentMethodDocument(id: string): Promise<boolean> {
-    const [deleted] = await this.db.delete(paymentMethodDocuments).where(eq(paymentMethodDocuments.id, id)).returning({ id: paymentMethodDocuments.id });
-    return !!deleted;
+    const result = await this.db.delete(paymentMethodDocuments).where(eq(paymentMethodDocuments.id, id));
+    return result.rowCount > 0;
   }
 
   // Coupons
@@ -2148,8 +2125,8 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   }
 
   async deleteCoupon(id: string): Promise<boolean> {
-    const [deleted] = await this.db.delete(coupons).where(eq(coupons.id, id)).returning({ id: coupons.id });
-    return !!deleted;
+    const result = await this.db.delete(coupons).where(eq(coupons.id, id));
+    return result.rowCount > 0;
   }
 
   async validateCoupon(code: string, orderValue: number, userId?: string, userPhone?: string): Promise<{ valid: boolean; coupon?: Coupon; discount?: number; message?: string }> {
